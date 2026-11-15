@@ -6,7 +6,7 @@
   const A = window.USAFL;
   const { icon, esc, store, render, animateIn, staggerIn, openSheet, closeSheet, go, seg, wireSeg, empty } = A;
 
-  const REPO = { owner: "liam12-debug", repo: "usafl-umpires-app", branch: "main" };
+  const REPO = { owner: "USAFL-Umpires", repo: "usafl-umpires-app", branch: "main" }; // GitHub organization
   const DEFAULT_PIN = "2026";
   const ACTIVE = new Set(["field", "goal", "boundary", "ts", "coach", "duty"]);
   const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -206,7 +206,7 @@
       <div class="list">
         ${row("#/admin/settings", "gear", "Settings", token() ? "GitHub connected · PIN" : "Connect GitHub · PIN")}
       </div>
-      <p class="foot-note">Publishing saves to GitHub (${esc(REPO.owner)}/${esc(REPO.repo)}); Vercel puts it live in about a minute.</p>
+      <p class="foot-note">Publishing saves to GitHub (${esc(REPO.owner)}/${esc(REPO.repo)}); the site redeploys in about a minute.</p>
     `);
   }
 
@@ -229,9 +229,9 @@
       <details class="howto">
         <summary>How to create the token</summary>
         <ol>
-          <li>Open <a class="link-btn" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → New fine-grained token</a> (sign in as ${esc(REPO.owner)}).</li>
+          <li>Open <a class="link-btn" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → New fine-grained token</a> (signed in to the USAFL GitHub account).</li>
           <li>Name it “USAFL admin”. Set an expiry after the tournament (e.g. 90 days).</li>
-          <li>Repository access → <b>Only select repositories</b> → <b>${esc(REPO.repo)}</b>.</li>
+          <li>Resource owner → <b>${esc(REPO.owner)}</b>. Repository access → <b>Only select repositories</b> → <b>${esc(REPO.repo)}</b>.</li>
           <li>Permissions → Repository → <b>Contents: Read and write</b>. Nothing else.</li>
           <li>Generate, copy the token, and paste it above.</li>
         </ol>
