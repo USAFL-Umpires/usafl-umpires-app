@@ -49,6 +49,14 @@ window.Hub = (function () {
       const rows = await call("/rest/v1/applications?select=*&user_id=eq." + session.user_id, {}, true);
       return rows[0] || null;
     },
+    // ---- committee (row-level security only lets coaches and admins do these) ----
+    get userId() { return session && session.user_id; },
+    allApplications() { return call("/rest/v1/applications?select=*&status=neq.draft&order=submitted_at.asc", {}, true); },
+    profilesByIds(ids) { return ids.length ? call("/rest/v1/profiles?select=id,full_name,email,city,state,country,home_club,disciplines,role&id=in.(" + ids.join(",") + ")", {}, true) : Promise.resolve([]); },
+    notesFor(ids) { return ids.length ? call("/rest/v1/staff_notes?select=*&order=created_at.asc&user_id=in.(" + ids.join(",") + ")", {}, true) : Promise.resolve([]); },
+    patchApplication(id, fields) { return call("/rest/v1/applications?id=eq." + id, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(fields) }, true).then((r) => { if (!r.length) throw new Error("Nothing was changed"); return r[0]; }); },
+    setRole(userId, role) { return call("/rest/v1/profiles?id=eq." + userId, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ role }) }, true).then((r) => { if (!r.length) throw new Error("Nothing was changed"); return r[0]; }); },
+    addNote(userId, body) { return call("/rest/v1/staff_notes", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ user_id: userId, body }) }, true); },
     async submitApplication(answers) {
       const rows = await call("/rest/v1/applications", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ user_id: session.user_id, status: "submitted", answers }) }, true);
       return rows[0];

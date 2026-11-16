@@ -130,7 +130,7 @@
       { title: "Meet your regional coach", body: "A short video call to plan your first games", done: false },
     ],
     // A visiting Australian's application answers (applications.answers, track "nationals-2027") and their to-do list.
-    visit: { track: "nationals-2027", state: "VIC", league: "Northern Football Netball League", disciplines: ["field"], years: "6 to 10 years", level: "Community seniors", been: "First time", note: "" },
+    visit: { track: "nationals-2027", state: "VIC", league: "Northern Football Netball League", disciplines: ["field"], years: "6 to 10 years", level: "Community seniors", been: "First time", heard: "A mate or another umpire", note: "" },
     visitStatus: "submitted",
     visitSteps: [
       { title: "Make your profile", body: "Done. That's the pass you're looking at.", done: true },
@@ -167,6 +167,9 @@
       { id: "tom-whitlock", name: "Tom Whitlock", where: "Melbourne, VIC, moving to Seattle", wants: "field", days: 5, status: "under_review", club: "None yet",
         answers: [["Have you umpired before?", "Eight years in the Northern Football Netball League in Melbourne, senior field panel for the last three."], ["What's your footy background?", "Junior footy to under 18s, then straight into umpiring."], ["Which disciplines interest you?", "Field. Happy to coach newer umpires too."], ["Where can you travel?", "Moving to Seattle in January. West coast is easy, east coast with notice."], ["Anything else we should know?", "I can send my AFL Victoria accreditation record and a reference from my umpiring coach."]],
         notes: [] },
+      { id: "jess-tran", name: "Jess Tran", where: "VIC, Australia", wants: "boundary", wantsAll: "Boundary, Goal", days: 3, status: "submitted", club: "Geelong & District FL", track: "nationals-2027",
+        answers: [["Home state", "Victoria"], ["League", "Geelong & District FL"], ["Umpires", "Boundary, Goal"], ["Experience", "3 to 5 years"], ["Highest level", "Community seniors"], ["USAFL Nationals", "First time"], ["Heard about us from", "My league or umpiring group"], ["Anything else", "Travelling with a mate who umpires field."]],
+        notes: [] },
       { id: "marcus-bell", name: "Marcus Bell", where: "Nashville, TN", wants: "goal", days: 2, status: "submitted", club: "Nashville Kangaroos",
         answers: [["Have you umpired before?", "No. I've run the scoreboard and timekeeping for Nashville for two years."], ["What's your footy background?", "Found the sport through a friend in 2023. Never played, love watching."], ["Which disciplines interest you?", "Goal umpiring."], ["Where can you travel?", "Home games and anything within a day's drive."], ["Anything else we should know?", "Nothing to add."]],
         notes: [] },
@@ -195,7 +198,7 @@
   };
 
   function isWaiting(a) { return a.status === "submitted" || a.status === "under_review"; }
-  const STATUS = { submitted: "New", under_review: "In review", approved: "Approved", declined: "Declined" };
+  const STATUS = { submitted: "New", under_review: "In review", approved: "Approved", declined: "Declined", withdrawn: "Withdrawn" };
   const initials = (n) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
   const ROLES = {
@@ -208,7 +211,7 @@
     visitor: [["home", "Home", "home"], ["trip", "Your trip", "flag"], ["ready", "Before you fly", "list"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
     applicant: [["home", "Home", "home"], ["application", "Application", "file"], ["getting-started", "Getting started", "list"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
     umpire: [["home", "Home", "home"], ["appointments", "Appointments", "calendar"], ["accreditation", "Accreditation", "award"], ["compliance", "Compliance", "shield", 1], ["learning", "Learning", "book", 2], ["events", "Events", "flag"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
-    staff: [["home", "Home", "home"], ["applications", "Applications", "inbox", 4], ["members", "Members", "users"], ["compliance", "Documents", "shield", 6], ["learning", "Learning", "book"], ["events", "Events", "flag"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
+    staff: [["home", "Home", "home"], ["applications", "Applications", "inbox", 5], ["members", "Members", "users"], ["compliance", "Documents", "shield", 6], ["learning", "Learning", "book"], ["events", "Events", "flag"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
   };
   const STUBS = {
     trip: "Your pass, your answers and where your spot is up to.",
@@ -270,7 +273,7 @@
       <div class="panel-top"><h2>${esc(title)}</h2>${to ? `<a href="#/${to}">See all ${icon("next", "sm")}</a>` : ""}</div>
       ${body}
     </section>`;
-  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 
   // The ground. Three umpires work a game: field (centre), boundary (the line), goal (between the posts).
   function ground(c) {
@@ -394,8 +397,8 @@
       panels: panel("Applications to review", "applications", S.queue.map((q) => `
         <div class="row">
           <div class="avatar">${esc(initials(q.name))}</div>
-          <div class="row-main"><b>${esc(q.name)}</b><span>${esc(q.where)}</span></div>
-          <span class="chip ${q.wants}">${cap(q.wants)}</span>
+          <div class="row-main"><b>${esc(q.name)}${trackChip(q)}</b><span>${esc(q.where)}</span></div>
+          ${q.wants ? `<span class="chip ${q.wants}">${cap(q.wants)}</span>` : ""}
           <a class="btn quiet" href="#/applications/${q.id}">Review</a>
         </div>`).join("") || '<p class="empty">No applications are waiting.</p>') + panel("Documents to check", "compliance", S.docsWaiting.slice(0, 4).map((e) => `
         <div class="row">
@@ -407,9 +410,49 @@
 
 
   // ---------- committee: applications review ----------
+  const appSets = () => { const all = SAMPLE.applications; return { waiting: all.filter(isWaiting), visiting: all.filter((a) => a.track), decided: all.filter((a) => !isWaiting(a)), all }; };
+  const trackChip = (a) => (a.track ? ` <span class="chip visit">Nationals 2027</span>` : "");
+  const daysSince = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso)) / DAY));
+  let appsLive = false, appsError = "";
+  function answerPairs(a) {
+    if (a.track === "nationals-2027") return [["Home state", (AIRPORT[a.state] || ["", a.state])[1]], ["League", a.league], ["Umpires", (a.disciplines || []).map(cap).join(", ")], ["Experience", a.years], ["Highest level", a.level], ["USAFL Nationals", a.been], ["Heard about us from", a.heard], ["Anything else", a.note]].filter((p) => p[1]);
+    return Object.keys(a).filter((k) => k !== "track" && a[k] !== "" && a[k] != null).map((k) => [cap(k.replace(/_/g, " ")), Array.isArray(a[k]) ? a[k].join(", ") : String(a[k])]);
+  }
+  // Real applications for the committee: applications + the applicant's profile + committee notes.
+  async function loadApplications() {
+    const apps = await Hub.allApplications();
+    const notes = await Hub.notesFor([...new Set(apps.map((a) => a.user_id))]);
+    const ids = [...new Set(apps.flatMap((a) => [a.user_id, a.reviewed_by]).concat(notes.map((n) => n.author_id)).filter(Boolean))];
+    const people = {}; (await Hub.profilesByIds(ids)).forEach((p) => { people[p.id] = p; });
+    SAMPLE.applications = apps.map((a) => {
+      const p = people[a.user_id] || {}, an = a.answers || {};
+      const disc = (an.disciplines && an.disciplines.length ? an.disciplines : p.disciplines || []).filter((d) => d !== "coach");
+      return { id: a.id, user_id: a.user_id, live: true, role: p.role, track: an.track || "", name: p.full_name || p.email || "No name yet", email: p.email || "",
+        where: [p.city, p.state, p.country && p.country !== "USA" ? p.country : ""].filter(Boolean).join(", ") || "Location not given",
+        wants: disc[0] || "", wantsAll: disc.map(cap).join(", ") || "Not given", days: daysSince(a.submitted_at || a.created_at), status: a.status, club: p.home_club || "Not given",
+        answers: answerPairs(an), decided_days: a.reviewed_at ? daysSince(a.reviewed_at) : 0, decided_by: (people[a.reviewed_by] || {}).full_name || "the committee", decision_message: a.decision_message || "",
+        notes: notes.filter((n) => n.user_id === a.user_id).map((n) => ({ author: (people[n.author_id] || {}).full_name || "Committee", days: daysSince(n.created_at), body: n.body })) };
+    });
+    appsLive = true; appsError = "";
+  }
+  const refreshApplications = () => loadApplications().catch(() => { appsError = "Couldn't refresh the list. Showing what loaded last."; }).then(() => { if (route() === "applications" || route() === "home") render(); });
+  // Writes a decision that is already showing on screen; puts it back if the save fails.
+  function saveDecision(app, was) {
+    if (!app.live) return;
+    const ok = app.status === "approved";
+    Hub.patchApplication(app.id, { status: app.status, decision_message: app.decision_message || null, reviewed_by: Hub.userId, reviewed_at: new Date().toISOString() })
+      .then(() => (ok && !app.track && app.role === "applicant" ? Hub.setRole(app.user_id, "umpire").then(() => { app.role = "umpire"; app.promoted = true; }) : null))
+      .catch(() => { Object.assign(app, was); hideToast(); render(); showToast("Couldn't save that decision. Try again."); });
+  }
+  function undoDecision(app, was) {
+    if (!app.live) return;
+    Hub.patchApplication(app.id, { status: was.status, decision_message: null, reviewed_by: null, reviewed_at: null }).catch(() => showToast("Couldn't undo that. Reload and check."));
+    if (app.promoted) { app.promoted = false; app.role = "applicant"; Hub.setRole(app.user_id, "applicant").catch(() => {}); }
+  }
+
   function viewApplications(id) {
     const S = SAMPLE, all = S.applications;
-    const sets = { waiting: all.filter(isWaiting), decided: all.filter((a) => !isWaiting(a)), all };
+    const sets = appSets();
     const list = sets[appFilter];
     const picked = all.find((a) => a.id === id);
     const cur = picked || list[0];
@@ -418,15 +461,15 @@
     const rows = list.map((a) => `
       <a class="row pick" href="#/applications/${a.id}" ${cur && a.id === cur.id ? 'aria-current="true"' : ""}>
         <div class="avatar">${esc(initials(a.name))}</div>
-        <div class="row-main"><b>${esc(a.name)}</b><span>${esc(a.where)}</span></div>
+        <div class="row-main"><b>${esc(a.name)}${trackChip(a)}</b><span>${esc(a.where)}</span></div>
         <div class="row-aside">${isWaiting(a) ? ago(a.days) : `<span class="chip ${a.status}">${STATUS[a.status]}</span>`}</div>
-      </a>`).join("") || `<p class="empty">${appFilter === "waiting" ? "No applications are waiting. New ones show up here as soon as they're submitted." : "No decisions yet."}</p>`;
+      </a>`).join("") || `<p class="empty">${appFilter === "waiting" ? "No applications are waiting. New ones show up here as soon as they're submitted." : appFilter === "visiting" ? "No visiting umpires yet. They show up here once they've made a profile." : appFilter === "all" ? "No applications yet." : "No decisions yet."}</p>`;
 
     let decision = "";
     if (cur && isWaiting(cur) && deciding && deciding.id === cur.id) {
       const ok = deciding.kind === "approve";
       decision = `<div class="decide">
-        <label for="msg"><b>Message to ${esc(first(cur))}</b><span>${ok ? `Optional. ${esc(first(cur))} sees this when they next sign in, and moves to the umpire hub.` : `${esc(first(cur))} sees this, so say why and whether they can apply again.`}</span></label>
+        <label for="msg"><b>Message to ${esc(first(cur))}</b><span>${ok ? (cur.track ? `Optional. ${esc(first(cur))} sees this when they next sign in, and their spot shows as confirmed.` : `Optional. ${esc(first(cur))} sees this when they next sign in, and moves to the umpire hub.`) : `${esc(first(cur))} sees this, so say why and whether they can apply again.`}</span></label>
         <textarea id="msg" rows="3" ${decideError ? 'aria-invalid="true" aria-describedby="msg-err"' : ""}></textarea>
         ${decideError ? `<p class="err" id="msg-err">${esc(decideError)}</p>` : ""}
         <div class="acts"><button class="btn ${ok ? "go" : "stop"}" data-confirm>${ok ? "Approve application" : "Decline application"}</button><button class="btn quiet" data-cancel>Cancel</button></div>
@@ -434,7 +477,8 @@
     } else if (cur && isWaiting(cur)) {
       decision = `<div class="acts"><button class="btn go" data-decide="approve">${icon("check", "sm")} Approve</button><button class="btn quiet" data-decide="decline">Decline</button></div>`;
     } else if (cur) {
-      decision = `<div class="decided ${cur.status}"><b>${STATUS[cur.status]} ${ago(cur.decided_days).toLowerCase()} by ${esc(cur.decided_by)}</b>${cur.decision_message ? `<p>${esc(cur.decision_message)}</p>` : "<p>No message was sent.</p>"}</div>`;
+      decision = cur.status === "withdrawn" ? `<div class="decided"><b>Withdrawn by ${esc(first(cur))}</b><p>Nothing to decide unless they send it again.</p></div>`
+        : `<div class="decided ${cur.status}"><b>${STATUS[cur.status]} ${ago(cur.decided_days).toLowerCase()} by ${esc(cur.decided_by)}</b>${cur.decision_message ? `<p>${esc(cur.decision_message)}</p>` : "<p>No message was sent.</p>"}</div>`;
     }
 
     const detail = cur ? `
@@ -442,17 +486,18 @@
         <a class="back" href="#/applications">${icon("next", "sm")} All applications</a>
         <header class="who">
           <div class="avatar lg">${esc(initials(cur.name))}</div>
-          <div class="who-main"><h2>${esc(cur.name)}</h2><p>${esc(cur.where)}</p></div>
+          <div class="who-main"><h2>${esc(cur.name)}</h2><p>${esc(cur.where)}${cur.email ? " · " + esc(cur.email) : ""}</p></div>
+          ${cur.track ? `<span class="chip visit">Nationals 2027</span>` : ""}
           <span class="chip ${cur.status}">${STATUS[cur.status]}</span>
         </header>
         <dl class="facts">
           <div><dt>Applied</dt><dd>${ago(cur.days)}</dd></div>
-          <div><dt>Wants to umpire</dt><dd>${cap(cur.wants)}</dd></div>
-          <div><dt>Home club</dt><dd>${esc(cur.club)}</dd></div>
+          <div><dt>Wants to umpire</dt><dd>${esc(cur.wantsAll || cap(cur.wants))}</dd></div>
+          <div><dt>${cur.track ? "League" : "Home club"}</dt><dd>${esc(cur.club)}</dd></div>
         </dl>
         ${decision}
         <h3>Application</h3>
-        <dl class="answers">${cur.answers.map((qa) => `<div><dt>${esc(qa[0])}</dt><dd>${esc(qa[1])}</dd></div>`).join("")}</dl>
+        <dl class="answers">${cur.answers.map((qa) => `<div><dt>${esc(qa[0])}</dt><dd>${esc(qa[1])}</dd></div>`).join("") || `<p class="hint">No answers were given.</p>`}</dl>
         <h3>Committee notes</h3>
         <p class="hint">Only coaches and the committee see these.</p>
         ${cur.notes.map((n) => `<div class="note"><b>${esc(n.author)}</b><span>${ago(n.days)}</span><p>${esc(n.body)}</p></div>`).join("")}
@@ -461,10 +506,11 @@
 
     return `
       <header class="page-head"><h1>Applications</h1>
-        <p class="sub">${sets.waiting.length ? `${sets.waiting.length} waiting. The oldest came in ${ago(oldest.days).toLowerCase()}.` : "Nothing is waiting on you."}</p></header>
+        <p class="sub">${sets.waiting.length ? `${sets.waiting.length} waiting. The oldest came in ${ago(oldest.days).toLowerCase()}.` : "Nothing is waiting on you."}</p>
+        ${appsError ? `<p class="notice" role="status">${esc(appsError)}</p>` : ""}</header>
       <div class="review ${picked ? "picked" : ""}">
         <section class="panel list" aria-label="Applications">
-          <div class="seg" role="group" aria-label="Show">${[["waiting", `Waiting ${sets.waiting.length}`], ["decided", "Decided"], ["all", "All"]].map((f) => `<button data-filter="${f[0]}" aria-pressed="${f[0] === appFilter}">${f[1]}</button>`).join("")}</div>
+          <div class="seg" role="group" aria-label="Show">${[["waiting", `Waiting ${sets.waiting.length}`], ["visiting", `Nationals 2027${sets.visiting.length ? " " + sets.visiting.length : ""}`], ["decided", "Decided"], ["all", "All"]].map((f) => `<button data-filter="${f[0]}" aria-pressed="${f[0] === appFilter}">${f[1]}</button>`).join("")}</div>
           ${rows}
         </section>
         ${detail}
@@ -832,7 +878,7 @@
     const dark = document.documentElement.dataset.theme === "dark";
     const isLive = mode === "live", canSwitch = !isLive || LIVE_ROLE[me.role] === "staff";
     return `<div class="preview">
-      <p>${isLive ? `Signed in as ${esc(me.email)}. Your profile is live; the rest is sample data until it's connected.` : "Sample data. Nothing here is saved."}</p>
+      <p>${isLive ? `Signed in as ${esc(me.email)}. Your profile${appsLive ? " and Applications are" : " is"} live; the rest is sample data until it's connected.` : "Sample data. Nothing here is saved."}</p>
       ${canSwitch ? `<div class="seg" role="group" aria-label="${isLive ? "View as" : "Preview as"}">${Object.keys(ROLES).map((k) => `<button data-role="${k}" aria-pressed="${k === role}">${ROLES[k].label}</button>`).join("")}</div>` : ""}
       ${isLive ? `<button class="btn quiet" data-signout>Sign out</button>` : `<button class="btn quiet" data-signin>Sign in</button>`}
       <button class="icon-btn" data-theme-toggle aria-label="Switch to ${dark ? "light" : "dark"} theme">${icon(dark ? "sun" : "moon")}</button>
@@ -843,12 +889,12 @@
   const AIRPORT = { VIC: ["MEL", "Victoria"], NSW: ["SYD", "New South Wales"], QLD: ["BNE", "Queensland"], SA: ["ADL", "South Australia"], WA: ["PER", "Western Australia"], TAS: ["HBA", "Tasmania"], ACT: ["CBR", "Canberra"], NT: ["DRW", "Northern Territory"] };
   const NATS = { starts: new Date(2027, 9, 15), dates: "15\u201317 October 2027", place: "Warren County, Ohio (Greater Cincinnati)" };
   const daysToNats = () => Math.max(0, Math.ceil((NATS.starts - today) / DAY));
-  const VISIT_STEPS = ["name", "home", "what", "exp", "trip", "email"];
-  const blankVisit = () => ({ step: 0, first: "", last: "", state: "", league: "", disciplines: [], years: "", level: "", been: "", note: "", email: "", sent: false });
+  const VISIT_STEPS = ["name", "home", "what", "exp", "trip", "heard", "email"];
+  const blankVisit = () => ({ step: 0, first: "", last: "", state: "", league: "", disciplines: [], years: "", level: "", been: "", note: "", heard: "", email: "", sent: false });
   let visit = Object.assign(blankVisit(), store.get("usafl.hub.visit") || {});
   let visitError = "", visitBusy = false, planeAt = 0;
   const saveVisit = () => store.set("usafl.hub.visit", visit);
-  const visitAnswers = (v) => ({ track: "nationals-2027", state: v.state, league: v.league, disciplines: v.disciplines, years: v.years, level: v.level, been: v.been, note: v.note });
+  const visitAnswers = (v) => ({ track: "nationals-2027", state: v.state, league: v.league, disciplines: v.disciplines, years: v.years, level: v.level, been: v.been, note: v.note, heard: v.heard });
 
   // The pass fills in as answers arrive; the plane's place on the route is the progress bar.
   function pass(name, a, progress, from) {
@@ -909,6 +955,8 @@
         chips("years", [["1 to 2 years"], ["3 to 5 years"], ["6 to 10 years"], ["More than 10 years"]]) + `<p class="ask2">And the highest level you've umpired?</p>` + chips("level", [["Juniors"], ["Community seniors"], ["State league"], ["Talent pathway or higher"]])],
       trip: ["Been to a USAFL Nationals before?", "Either way, you'll be looked after.",
         chips("been", [["First time"], ["Been before"]]) + `<label class="fld"><span>Anything we should know? (optional)</span><textarea data-v="note" rows="2" placeholder="Travelling with a mate, injuries, coaching experience">${esc(v.note)}</textarea></label>`],
+      heard: ["How did you hear about us?", "Helps us work out where to find the next lot of umpires.",
+        chips("heard", [["A mate or another umpire"], ["My league or umpiring group"], ["Social media"], ["USAFL or a US club"], ["Somewhere else"]])],
       email: ["Last one. Where do we send your sign-in link?", "No password. Open the link and your profile is waiting.",
         `<label class="fld"><span>Email</span><input type="email" data-v="email" value="${esc(v.email)}" autocomplete="email" inputmode="email" /></label>`],
     };
@@ -941,7 +989,7 @@
     const v = visit, key = VISIT_STEPS[v.step];
     const bad = key === "name" ? !v.first.trim() && "Add your first name." : key === "home" ? !v.state && "Pick your state."
       : key === "what" ? !v.disciplines.length && "Pick at least one." : key === "exp" ? (!v.years || !v.level) && "Pick one from each row."
-      : key === "trip" ? !v.been && "Pick one." : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email.trim()) && "Enter your email address, like name@example.com.";
+      : key === "trip" ? !v.been && "Pick one." : key === "heard" ? !v.heard && "Pick one." : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email.trim()) && "Enter your email address, like name@example.com.";
     if (bad) { visitError = bad; render(); return; }
     visitError = "";
     if (key !== "email") { v.step++; saveVisit(); render(); const f = $("#visit-form input, #visit-form .pick-chip"); if (f && f.matches("input")) f.focus(); return; }
@@ -967,15 +1015,15 @@
   function homeVisitor() {
     const S = SAMPLE, left = S.visitSteps.filter((s) => !s.done), from = planeAt; planeAt = readiness();
     return {
-      sub: S.visitStatus === "approved" ? `Your spot at Nationals 2027 is confirmed. ${left.length} things left before you fly.` : `You're on the list for Cincinnati. The committee confirms spots once the umpire panel is set, and there ${left.length === 1 ? "is 1 thing" : `are ${left.length} things`} you can sort out now.`,
+      sub: S.visitStatus === "approved" ? `Your spot at Nationals 2027 is confirmed. ${left.length} things left before you fly.` : S.visitStatus === "declined" ? "The committee couldn't offer you a spot at Nationals 2027 this time." : `You're on the list for Cincinnati. The committee confirms spots once the umpire panel is set, and there ${left.length === 1 ? "is 1 thing" : `are ${left.length} things`} you can sort out now.`,
       hero: pass(S.profile.full_name, S.visit, planeAt, from), note: `${NATS.dates}, ${NATS.place}. ${daysToNats()} days to go.`,
-      cards: panel("Where your spot is up to", "trip", tripSteps() + `<p class="lede">${S.visitStatus === "approved" ? "You're in. Appointments come out in the weeks before the tournament." : "You'll get an email as soon as the committee confirms your spot. Hold off booking flights until then."}</p>`, "wide"),
+      cards: panel("Where your spot is up to", "trip", tripSteps() + `<p class="lede">${S.visitStatus === "approved" ? "You're in. Appointments come out in the weeks before the tournament." : S.visitStatus === "declined" ? "The committee couldn't offer you a spot this time." : "You'll hear as soon as the committee confirms your spot. Hold off booking flights until then."}</p>${S.visitMessage ? `<div class="decided ${S.visitStatus}"><b>From the committee</b><p>${esc(S.visitMessage)}</p></div>` : ""}`, "wide"),
       panels: panel("Before you fly", "ready", checklist(5)) + announcements(),
     };
   }
   function viewTrip() {
     const S = SAMPLE, a = S.visit, from = planeAt; planeAt = readiness();
-    const rows = [["Home state", (AIRPORT[a.state] || ["", a.state])[1]], ["League", a.league || "Not given"], ["Umpires", a.disciplines.map(cap).join(", ")], ["Experience", a.years], ["Highest level", a.level], ["USAFL Nationals", a.been]].concat(a.note ? [["Anything else", a.note]] : []);
+    const rows = [["Home state", (AIRPORT[a.state] || ["", a.state])[1]], ["League", a.league || "Not given"], ["Umpires", a.disciplines.map(cap).join(", ")], ["Experience", a.years], ["Highest level", a.level], ["USAFL Nationals", a.been]].concat(a.heard ? [["Heard about us from", a.heard]] : [], a.note ? [["Anything else", a.note]] : []);
     return head("Your trip", `Nationals 2027 is in ${NATS.place}, ${NATS.dates}. ${daysToNats()} days to go.`) + `
       <div class="profile trip">
         <section>${pass(S.profile.full_name, a, planeAt, from)}</section>
@@ -1038,6 +1086,7 @@
       const row = await Hub.profile();
       if (!row || !row.is_active) { Hub.forget(); mode = "gate"; gate.notice = row ? "Your account is paused. Contact the committee to get back in." : "We couldn't find your profile. Sign in again, or contact the committee."; render(); return; }
       useProfile(row); role = LIVE_ROLE[row.role]; mode = "live";
+      if (role === "staff") await loadApplications().catch(() => { SAMPLE.applications = []; appsLive = true; appsError = "Couldn't load applications. Reload to try again."; });
       if (row.role === "applicant") try {
         // A visiting Australian's answers ride along on the new account (or wait on this device) until first sign-in.
         let app = await Hub.application();
@@ -1050,7 +1099,7 @@
           }
         }
         if (app && app.answers && app.answers.track === "nationals-2027") {
-          role = "visitor"; SAMPLE.visitStatus = app.status;
+          role = "visitor"; SAMPLE.visitStatus = app.status; SAMPLE.visitMessage = app.decision_message || "";
           SAMPLE.visit = Object.assign({ state: "", league: "", disciplines: [], years: "", level: "", been: "", note: "" }, app.answers);
           const ticks = store.get("usafl.hub.visitTicks") || [];
           SAMPLE.visitSteps.forEach((s, i) => { s.done = i === 0 || ticks.includes(i); });
@@ -1189,7 +1238,7 @@
       showToast(`Assigned ${title} to ${n} ${n === 1 ? "member" : "members"}`, () => { who.forEach((m) => m.assigned.splice(m.assigned.indexOf(title), 1)); render(); });
       return;
     }
-    const pickedApp = SAMPLE.applications.find((a) => a.id === parts()[1]) || SAMPLE.applications.filter(appFilter === "waiting" ? isWaiting : appFilter === "decided" ? (a) => !isWaiting(a) : () => true)[0];
+    const pickedApp = SAMPLE.applications.find((a) => a.id === parts()[1]) || appSets()[appFilter][0];
     const f = e.target.closest("[data-filter]");
     if (f) { appFilter = f.dataset.filter; deciding = null; if (parts()[1]) location.hash = "#/applications"; else render(); return; }
     const d = e.target.closest("[data-decide]");
@@ -1204,13 +1253,18 @@
       deciding = null; decideError = "";
       // Like clearing a tray: the reviewed one leaves, the next one is already open, and Undo is right there.
       const nextUp = SAMPLE.queue[0];
-      showToast(`${ok ? "Approved" : "Declined"} ${app.name}`, () => { Object.assign(app, was); go("#/applications/" + app.id); });
+      saveDecision(app, was);
+      showToast(`${ok ? "Approved" : "Declined"} ${app.name}`, () => { undoDecision(app, was); Object.assign(app, was); go("#/applications/" + app.id); });
       go(nextUp && appFilter === "waiting" ? "#/applications/" + nextUp.id : "#/applications/" + app.id);
       return;
     }
     if (e.target.closest("[data-add-note]") && pickedApp) {
       const body = $("#note").value.trim();
-      if (body) { pickedApp.notes.push({ author: SAMPLE.profile.full_name, days: 0, body }); render(); showToast("Saved note"); }
+      if (body) {
+        const note = { author: SAMPLE.profile.full_name, days: 0, body }, app = pickedApp;
+        app.notes.push(note); render(); showToast("Saved note");
+        if (app.live) Hub.addNote(app.user_id, body).catch(() => { app.notes.splice(app.notes.indexOf(note), 1); render(); showToast("Couldn't save that note. Try again."); });
+      }
       return;
     }
     const t = e.target;
@@ -1253,7 +1307,10 @@
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { gate.error = "Enter your email address, like name@example.com."; render(); $("#si-email").focus(); return; }
     sendLink(email);
   });
-  addEventListener("hashchange", () => { deciding = null; decideError = ""; render(); $("#main").scrollTop = 0; });
+  addEventListener("hashchange", () => {
+    deciding = null; decideError = ""; render(); $("#main").scrollTop = 0;
+    if (appsLive && mode === "live" && route() === "applications" && !parts()[1]) refreshApplications();
+  });
   // ---------- boot ----------
   const back = Hub.takeRedirect(location.hash);
   if (back) history.replaceState(null, "", location.pathname + "#/home");
