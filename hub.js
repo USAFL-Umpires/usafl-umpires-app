@@ -129,6 +129,19 @@
       { title: "Order your uniform", body: "Shirt, shorts, socks and whistle", done: false },
       { title: "Meet your regional coach", body: "A short video call to plan your first games", done: false },
     ],
+    // A visiting Australian's application answers (applications.answers, track "nationals-2027") and their to-do list.
+    visit: { track: "nationals-2027", state: "VIC", league: "Northern Football Netball League", disciplines: ["field"], years: "6 to 10 years", level: "Community seniors", been: "First time", note: "" },
+    visitStatus: "submitted",
+    visitSteps: [
+      { title: "Make your profile", body: "Done. That's the pass you're looking at.", done: true },
+      { title: "Send your accreditation record", body: "A letter or screenshot from your league or state umpiring body", done: false },
+      { title: "Tell us your dates", body: "When you land and when you fly out. Games run 15\u201317 October", done: false },
+      { title: "Check your US entry requirements", body: "ESTA or visa: find out what applies to you before you book", done: false },
+      { title: "Book flights to Cincinnati (CVG)", body: "Wait until the committee confirms your spot", done: false },
+      { title: "Sort accommodation", body: "The committee shares the umpire hotel once it's booked", done: false },
+      { title: "Complete SafeSport training", body: "Required before you can be appointed to a game in the US", done: false },
+      { title: "Read the USAFL rule differences", body: "What changes from the game at home", done: false },
+    ],
     // staff views
     roster: { field: 34, boundary: 17, goal: 12 },
     // profiles + accreditations + member_compliance, one line per member
@@ -187,15 +200,19 @@
 
   const ROLES = {
     applicant: { label: "Prospective", title: "Prospective umpire" },
+    visitor: { label: "Visiting", title: "Visiting umpire, Nationals 2027" },
     umpire: { label: "Umpire", title: "Field and boundary umpire" },
     staff: { label: "Committee", title: "Committee admin" },
   };
   const NAV = {
+    visitor: [["home", "Home", "home"], ["trip", "Your trip", "flag"], ["ready", "Before you fly", "list"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
     applicant: [["home", "Home", "home"], ["application", "Application", "file"], ["getting-started", "Getting started", "list"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
     umpire: [["home", "Home", "home"], ["appointments", "Appointments", "calendar"], ["accreditation", "Accreditation", "award"], ["compliance", "Compliance", "shield", 1], ["learning", "Learning", "book", 2], ["events", "Events", "flag"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
     staff: [["home", "Home", "home"], ["applications", "Applications", "inbox", 4], ["members", "Members", "users"], ["compliance", "Documents", "shield", 6], ["learning", "Learning", "book"], ["events", "Events", "flag"], ["announcements", "Announcements", "megaphone"], null, ["profile", "Profile", "user"]],
   };
   const STUBS = {
+    trip: "Your pass, your answers and where your spot is up to.",
+    ready: "Everything to sort out before you fly to Cincinnati.",
     application: "Your answers, where the application is up to, and the committee's decision when it lands.",
     "getting-started": "The full getting-started guide, one step at a time, with links to each course and form.",
     appointments: "Every game you're appointed to, by event, with field, time and who you're umpiring with.",
@@ -215,10 +232,10 @@
   const gate = { sent: "", error: "", notice: "", busy: false };
   const LIVE_ROLE = { applicant: "applicant", umpire: "umpire", coach: "staff", admin: "staff" };
   function roleTitle() {
-    if (mode !== "live" || role !== LIVE_ROLE[me.role]) return ROLES[role].title;
+    if (mode !== "live" || (role !== LIVE_ROLE[me.role] && role !== "visitor")) return ROLES[role].title;
     if (me.role === "admin") return "Committee admin";
     if (me.role === "coach") return "Umpire coach";
-    if (me.role === "applicant") return "Prospective umpire";
+    if (me.role === "applicant") return role === "visitor" ? ROLES.visitor.title : "Prospective umpire";
     const d = SAMPLE.profile.disciplines.filter((x) => x !== "coach");
     return d.length ? cap(d.join(" and ")) + " umpire" : "Umpire";
   }
@@ -292,7 +309,7 @@
     </div>`;
   }
 
-  const visibleNews = () => SAMPLE.announcements.filter((a) => role === "staff" || (!a.draft && (!a.audience || a.audience === role)));
+  const visibleNews = () => SAMPLE.announcements.filter((a) => role === "staff" || (!a.draft && (!a.audience || a.audience === (role === "visitor" ? "applicant" : role))));
   const announcements = () => panel("Announcements", "announcements", visibleNews().filter((a) => !a.draft).slice(0, 4).map((a) => `
     <div class="row">
       <div class="row-main"><b>${a.pinned ? `<span class="pin" title="Pinned">${icon("pin", "sm")}</span> ` : ""}${esc(a.title)}</b><span class="wrap2">${esc(a.body)}</span></div>
@@ -784,9 +801,10 @@
     compliance: { umpire: viewCompliance, staff: viewDocuments },
     learning: { umpire: viewLearning, staff: viewLearningStaff },
     events: { umpire: viewEvents, staff: viewEvents },
-    announcements: { applicant: viewAnnouncements, umpire: viewAnnouncements, staff: viewAnnouncements },
-    profile: { applicant: viewProfile, umpire: viewProfile, staff: viewProfile },
-    more: { applicant: viewMore, umpire: viewMore, staff: viewMore },
+    trip: { visitor: viewTrip }, ready: { visitor: viewReady },
+    announcements: { visitor: viewAnnouncements, applicant: viewAnnouncements, umpire: viewAnnouncements, staff: viewAnnouncements },
+    profile: { visitor: viewProfile, applicant: viewProfile, umpire: viewProfile, staff: viewProfile },
+    more: { visitor: viewMore, applicant: viewMore, umpire: viewMore, staff: viewMore },
     application: { applicant: viewApplication }, "getting-started": { applicant: viewStarted },
     applications: { staff: viewApplications }, members: { staff: viewMembers },
   };
@@ -821,6 +839,160 @@
     </div>`;
   }
 
+  // ---------- visiting from Australia: profile builder + boarding pass ----------
+  const AIRPORT = { VIC: ["MEL", "Victoria"], NSW: ["SYD", "New South Wales"], QLD: ["BNE", "Queensland"], SA: ["ADL", "South Australia"], WA: ["PER", "Western Australia"], TAS: ["HBA", "Tasmania"], ACT: ["CBR", "Canberra"], NT: ["DRW", "Northern Territory"] };
+  const NATS = { starts: new Date(2027, 9, 15), dates: "15\u201317 October 2027", place: "Warren County, Ohio (Greater Cincinnati)" };
+  const daysToNats = () => Math.max(0, Math.ceil((NATS.starts - today) / DAY));
+  const VISIT_STEPS = ["name", "home", "what", "exp", "trip", "email"];
+  const blankVisit = () => ({ step: 0, first: "", last: "", state: "", league: "", disciplines: [], years: "", level: "", been: "", note: "", email: "", sent: false });
+  let visit = Object.assign(blankVisit(), store.get("usafl.hub.visit") || {});
+  let visitError = "", visitBusy = false, planeAt = 0;
+  const saveVisit = () => store.set("usafl.hub.visit", visit);
+  const visitAnswers = (v) => ({ track: "nationals-2027", state: v.state, league: v.league, disciplines: v.disciplines, years: v.years, level: v.level, been: v.been, note: v.note });
+
+  // The pass fills in as answers arrive; the plane's place on the route is the progress bar.
+  function pass(name, a, progress, from) {
+    const port = AIRPORT[a.state] || ["AUS", "Australia"];
+    const val = (v) => (v ? `<dd>${esc(v)}</dd>` : `<dd class="blank"></dd>`);
+    return `<div class="pass" data-plane="${progress}" data-from="${from === undefined ? progress : from}">
+      <div class="pass-top"><span>USAFL Nationals 2027</span><span>Umpire</span></div>
+      <div class="route">
+        <div class="port"><b class="num">${port[0]}</b><span>${port[1]}</span></div>
+        <svg class="arc" viewBox="0 0 200 64" aria-hidden="true">
+          <path class="arc-way" d="M8 54 Q100 -22 192 54"/>
+          <path class="arc-done" pathLength="1" d="M8 54 Q100 -22 192 54"/>
+          <g class="plane"><path d="M10 0C10-1.2 8-1.5 6-1.5H2L-3-8h-2.5l3 6.5H-7L-9-4h-1.5l1 4-1 4H-9l2-2.5h4.5l-3 6.5H-3l5-6.5h4C8 1.5 10 1.2 10 0z"/></g>
+        </svg>
+        <div class="port r"><b class="num">CVG</b><span>Cincinnati, Ohio</span></div>
+      </div>
+      <dl class="pass-facts">
+        <div class="wide2"><dt>Passenger</dt>${val(name)}</div>
+        <div class="wide2"><dt>League</dt>${val(a.league || (progress >= 1 ? "Not given" : ""))}</div>
+        <div><dt>Umpires</dt>${val(a.disciplines.map(cap).join(", "))}</div>
+        <div><dt>At it for</dt>${val(a.years)}</div>
+        <div><dt>Level</dt>${val(a.level)}</div>
+        <div><dt>Nationals</dt>${val(a.been)}</div>
+      </dl>
+      <div class="pass-stub"><div class="barcode"></div><span>15\u201317 Oct 2027</span></div>
+    </div>`;
+  }
+  // Slide the plane (and the flown part of the route) from where it was to where it is now.
+  function flyPlanes() {
+    document.querySelectorAll(".pass").forEach((el) => {
+      const to = +el.dataset.plane, from = +el.dataset.from, plane = $(".plane", el), done = $(".arc-done", el);
+      const put = (t) => {
+        const u = 1 - t, x = u * u * 8 + 2 * u * t * 100 + t * t * 192, y = u * u * 54 + 2 * u * t * -22 + t * t * 54;
+        const ang = (Math.atan2(2 * u * (-22 - 54) + 2 * t * (54 + 22), 2 * u * (100 - 8) + 2 * t * (192 - 100)) * 180) / Math.PI;
+        plane.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang.toFixed(1)})`);
+        done.style.strokeDasharray = `${t} 1`;
+      };
+      if (from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) { put(to); return; }
+      const t0 = performance.now(); put(from);
+      const tick = (now) => { const k = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - k, 3); put(from + (to - from) * e); if (k < 1 && el.isConnected) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function viewVisit() {
+    const v = visit, key = v.sent ? "sent" : VISIT_STEPS[v.step], n = VISIT_STEPS.length;
+    const dark = document.documentElement.dataset.theme === "dark";
+    const chips = (field, opts, multi) => `<div class="picks" role="group">${opts.map((o) => { const on = multi ? v[field].includes(o[0]) : v[field] === o[0]; return `<button type="button" class="pick-chip" data-pick="${field}" data-val="${esc(o[0])}" ${multi ? 'data-multi="1"' : ""} aria-pressed="${on}">${esc(o[1] || o[0])}</button>`; }).join("")}</div>`;
+    const text = (field, label, attrs = "") => `<label class="fld"><span>${label}</span><input type="text" data-v="${field}" value="${esc(v[field])}" ${attrs} /></label>`;
+    const Q = {
+      name: [`G'day. What do we call you?`, `Nationals 2027 is in ${NATS.place}, ${NATS.dates}. Your name goes on your pass.`,
+        `<div class="two">${text("first", "First name", 'autocomplete="given-name"')}${text("last", "Last name", 'autocomplete="family-name"')}</div>`],
+      home: [`Where's home, ${esc(v.first)}?`, "Pick your state. We'll work out the airport.",
+        chips("state", Object.keys(AIRPORT).map((k) => [k])) + text("league", "Which league do you umpire in? (optional)", 'placeholder="For example, Essendon District FL"')],
+      what: ["What do you umpire?", "Pick everything you'd be happy to do at Nationals.",
+        chips("disciplines", [["field", "Field"], ["boundary", "Boundary"], ["goal", "Goal"]], true)],
+      exp: ["How long have you been at it?", "No wrong answers. Every level of experience is welcome.",
+        chips("years", [["1 to 2 years"], ["3 to 5 years"], ["6 to 10 years"], ["More than 10 years"]]) + `<p class="ask2">And the highest level you've umpired?</p>` + chips("level", [["Juniors"], ["Community seniors"], ["State league"], ["Talent pathway or higher"]])],
+      trip: ["Been to a USAFL Nationals before?", "Either way, you'll be looked after.",
+        chips("been", [["First time"], ["Been before"]]) + `<label class="fld"><span>Anything we should know? (optional)</span><textarea data-v="note" rows="2" placeholder="Travelling with a mate, injuries, coaching experience">${esc(v.note)}</textarea></label>`],
+      email: ["Last one. Where do we send your sign-in link?", "No password. Open the link and your profile is waiting.",
+        `<label class="fld"><span>Email</span><input type="email" data-v="email" value="${esc(v.email)}" autocomplete="email" inputmode="email" /></label>`],
+    };
+    const body = v.sent ? `
+        <h1 class="ask">Check your email, ${esc(v.first)}.</h1>
+        <p class="sub">We sent a link to <b>${esc(v.email)}</b>. Open it and you'll land in your hub, with your pass and what to sort out before you fly.</p>
+        ${visitError ? `<p class="err" role="alert">${esc(visitError)}</p>` : ""}
+        <div class="acts"><button class="btn quiet" data-visit-resend ${visitBusy ? "disabled" : ""}>${visitBusy ? "Sending" : "Send it again"}</button><button class="btn quiet" data-visit-edit>Change my answers</button></div>
+        <p class="hint">Nothing after a couple of minutes? Check your spam folder.</p>` : `
+        <form id="visit-form" novalidate>
+          <h1 class="ask">${Q[key][0]}</h1>
+          <p class="sub">${Q[key][1]}</p>
+          ${Q[key][2]}
+          ${visitError ? `<p class="err" role="alert">${esc(visitError)}</p>` : ""}
+          <div class="acts">${v.step ? `<button type="button" class="btn quiet" data-visit-back>Back</button>` : ""}<button class="btn" ${visitBusy ? "disabled" : ""}>${key === "email" ? (visitBusy ? "Sending" : "Make my profile") : "Next"}</button></div>
+        </form>`;
+    const progress = v.sent ? 1 : v.step / n, from = planeAt; planeAt = progress;
+    return `<div class="gate-wrap visit">
+      <section class="gate-main">
+        <div class="gate-top"><a class="brand" href="#/home"><img src="icons/icon-192.png" alt="" /><div><b>USAFL Umpires</b><span>Nationals, ${NATS.dates}</span></div></a>
+          <span class="count-of">${v.sent ? "All done" : `${v.step + 1} of ${n}`}</span>
+          <button class="icon-btn" data-theme-toggle aria-label="Switch to ${dark ? "light" : "dark"} theme">${icon(dark ? "sun" : "moon")}</button></div>
+        <div class="gate-form">${body}</div>
+        <a class="linkish" href="#/home">Already have an account? Sign in ${icon("next", "sm")}</a>
+      </section>
+      <section class="gate-art">${pass([v.first, v.last].filter(Boolean).join(" "), v, progress, from)}<p class="hero-note">Your pass fills in as you go.</p></section>
+    </div>`;
+  }
+  function visitNext() {
+    const v = visit, key = VISIT_STEPS[v.step];
+    const bad = key === "name" ? !v.first.trim() && "Add your first name." : key === "home" ? !v.state && "Pick your state."
+      : key === "what" ? !v.disciplines.length && "Pick at least one." : key === "exp" ? (!v.years || !v.level) && "Pick one from each row."
+      : key === "trip" ? !v.been && "Pick one." : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email.trim()) && "Enter your email address, like name@example.com.";
+    if (bad) { visitError = bad; render(); return; }
+    visitError = "";
+    if (key !== "email") { v.step++; saveVisit(); render(); const f = $("#visit-form input, #visit-form .pick-chip"); if (f && f.matches("input")) f.focus(); return; }
+    sendVisitLink();
+  }
+  async function sendVisitLink() {
+    const v = visit; v.email = v.email.trim(); visitBusy = true; visitError = ""; render();
+    try {
+      await Hub.sendLink(v.email, location.origin + location.pathname, { full_name: [v.first.trim(), v.last.trim()].filter(Boolean).join(" "), preferred_name: v.first.trim(), visit: visitAnswers(v) });
+      v.sent = true; saveVisit();
+    } catch (e) { visitError = e.status === 429 ? "You've asked for a few links already. Wait a minute, then try again." : e.status ? "We couldn't send the link. Check the address and try again." : "You seem to be offline. Check your connection and try again."; }
+    visitBusy = false; render();
+  }
+
+  // ---------- visiting umpire: home, trip, checklist ----------
+  const TRIP_STEPS = [["submitted", "Profile made"], ["under_review", "With the committee"], ["approved", "Spot confirmed"]];
+  function tripSteps() {
+    const st = SAMPLE.visitStatus, at = Math.max(0, TRIP_STEPS.findIndex((s) => s[0] === st));
+    return `<ol class="steps three">${TRIP_STEPS.map((s, i) => `<li class="${i < at || st === "approved" ? "done" : i === at ? "now" : ""}"${i === at ? ' aria-current="step"' : ""}>${s[1]}</li>`).join("")}</ol>`;
+  }
+  const readiness = () => SAMPLE.visitSteps.filter((s) => s.done).length / SAMPLE.visitSteps.length;
+  const checklist = (limit) => SAMPLE.visitSteps.map((o, i) => `<button class="check" role="checkbox" aria-checked="${o.done}" data-vstep="${i}"><span class="tick">${icon("check", "sm")}</span><span class="row-main"><b>${esc(o.title)}</b><span>${esc(o.body)}</span></span></button>`).slice(0, limit || 99).join("");
+  function homeVisitor() {
+    const S = SAMPLE, left = S.visitSteps.filter((s) => !s.done), from = planeAt; planeAt = readiness();
+    return {
+      sub: S.visitStatus === "approved" ? `Your spot at Nationals 2027 is confirmed. ${left.length} things left before you fly.` : `You're on the list for Cincinnati. The committee confirms spots once the umpire panel is set, and there ${left.length === 1 ? "is 1 thing" : `are ${left.length} things`} you can sort out now.`,
+      hero: pass(S.profile.full_name, S.visit, planeAt, from), note: `${NATS.dates}, ${NATS.place}. ${daysToNats()} days to go.`,
+      cards: panel("Where your spot is up to", "trip", tripSteps() + `<p class="lede">${S.visitStatus === "approved" ? "You're in. Appointments come out in the weeks before the tournament." : "You'll get an email as soon as the committee confirms your spot. Hold off booking flights until then."}</p>`, "wide"),
+      panels: panel("Before you fly", "ready", checklist(5)) + announcements(),
+    };
+  }
+  function viewTrip() {
+    const S = SAMPLE, a = S.visit, from = planeAt; planeAt = readiness();
+    const rows = [["Home state", (AIRPORT[a.state] || ["", a.state])[1]], ["League", a.league || "Not given"], ["Umpires", a.disciplines.map(cap).join(", ")], ["Experience", a.years], ["Highest level", a.level], ["USAFL Nationals", a.been]].concat(a.note ? [["Anything else", a.note]] : []);
+    return head("Your trip", `Nationals 2027 is in ${NATS.place}, ${NATS.dates}. ${daysToNats()} days to go.`) + `
+      <div class="profile trip">
+        <section>${pass(S.profile.full_name, a, planeAt, from)}</section>
+        <div class="stack">
+          <section class="panel wide"><div class="panel-top"><h2>Where your spot is up to</h2></div>${tripSteps()}<p class="lede">The committee confirms visiting umpires once the panel is set.</p></section>
+          <section class="panel post"><div class="panel-top"><h2>What you told us</h2></div>
+            <dl class="answers">${rows.map((r) => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl>
+            <p class="hint">Something changed? Tell the committee and they'll update it.</p></section>
+        </div>
+      </div>`;
+  }
+  function viewReady() {
+    const O = SAMPLE.visitSteps, done = O.filter((o) => o.done).length;
+    return head("Before you fly", done === O.length ? "All sorted. See you in Cincinnati." : `${done} of ${O.length} done. Tick things off as you go.`) + `
+      <div class="feed"><section class="panel reqs">${pips(O.map((o) => (o.done ? "on" : "")))}${checklist()}</section></div>`;
+  }
+
   // ---------- sign-in ----------
   function viewGate() {
     const dark = document.documentElement.dataset.theme === "dark";
@@ -838,7 +1010,8 @@
           ${gate.error ? `<p class="err" id="si-err" role="alert">${esc(gate.error)}</p>` : ""}
           <button class="btn" ${gate.busy ? "disabled" : ""}>${gate.busy ? "Sending" : "Email me a link"}</button>
         </form>
-        <p class="hint">New to umpiring? Use the same box. We'll set up your account and you can apply from there.</p>`;
+        <p class="hint">New to umpiring? Use the same box. We'll set up your account and you can apply from there.</p>
+        <a class="invite" href="#/visit"><b>Coming from Australia for Nationals 2027?</b><span>Make your visiting umpire profile in about two minutes ${icon("next", "sm")}</span></a>`;
     return `<div class="gate-wrap">
       <section class="gate-main">
         <div class="gate-top"><div class="brand"><img src="icons/icon-192.png" alt="" /><div><b>USAFL Umpires</b><span>The umpiring hub</span></div></div>
@@ -865,6 +1038,25 @@
       const row = await Hub.profile();
       if (!row || !row.is_active) { Hub.forget(); mode = "gate"; gate.notice = row ? "Your account is paused. Contact the committee to get back in." : "We couldn't find your profile. Sign in again, or contact the committee."; render(); return; }
       useProfile(row); role = LIVE_ROLE[row.role]; mode = "live";
+      if (row.role === "applicant") try {
+        // A visiting Australian's answers ride along on the new account (or wait on this device) until first sign-in.
+        let app = await Hub.application();
+        if (!app) {
+          const pending = visit.sent ? visitAnswers(visit) : (await Hub.metadata()).visit;
+          if (pending && pending.track) {
+            app = await Hub.submitApplication(pending);
+            const name = visit.sent ? [visit.first.trim(), visit.last.trim()].filter(Boolean).join(" ") : row.full_name;
+            useProfile(await Hub.saveProfile({ full_name: name || row.full_name, preferred_name: (name || "").split(" ")[0] || null, state: pending.state, country: "Australia", home_club: pending.league || null, disciplines: pending.disciplines }));
+          }
+        }
+        if (app && app.answers && app.answers.track === "nationals-2027") {
+          role = "visitor"; SAMPLE.visitStatus = app.status;
+          SAMPLE.visit = Object.assign({ state: "", league: "", disciplines: [], years: "", level: "", been: "", note: "" }, app.answers);
+          const ticks = store.get("usafl.hub.visitTicks") || [];
+          SAMPLE.visitSteps.forEach((s, i) => { s.done = i === 0 || ticks.includes(i); });
+          visit = blankVisit(); store.set("usafl.hub.visit", null);
+        }
+      } catch (e) { /* Still signed in; the answers stay on this device and are sent on the next visit. */ }
     } catch (e) {
       mode = "gate";
       if (e.status && e.status < 500) { Hub.forget(); gate.notice = "Your sign-in has expired. Enter your email for a new link."; }
@@ -874,11 +1066,14 @@
   }
 
   function render() {
-    const out = mode === "gate" || mode === "loading";
+    const visiting = route() === "visit" && mode !== "loading";
+    if (visiting && mode === "live") { location.replace("#/home"); return; }
+    const out = mode === "gate" || mode === "loading" || visiting;
     document.body.classList.toggle("gate", out);
     if (out) {
       $("#side").innerHTML = "";
       if (mode === "loading") { $("#view").innerHTML = `<p class="loading" role="status">Signing you in</p>`; return; }
+      if (visiting) { $("#view").innerHTML = viewVisit(); flyPlanes(); firstPaint = false; return; }
       const typed = $("#si-email") ? $("#si-email").value : "";
       $("#view").innerHTML = viewGate(); firstPaint = false;
       if ($("#si-email")) $("#si-email").value = typed;
@@ -887,22 +1082,23 @@
     renderSide();
     const r = route(), view = $("#view");
     const page = PAGES[r] && PAGES[r][role];
-    if (page) { view.innerHTML = previewBar() + page(parts()[1]); if (r === "members") syncMembers(); else syncBulk(); return; }
+    if (page) { view.innerHTML = previewBar() + page(parts()[1]); flyPlanes(); if (r === "members") syncMembers(); else syncBulk(); return; }
     if (r !== "home") {
       view.innerHTML = previewBar() + `<div class="stub"><h1>Page not found</h1><p>That page isn't part of this view.</p><a class="btn" href="#/home">Back to home</a></div>`;
       return;
     }
-    const h = { applicant: homeApplicant, umpire: homeUmpire, staff: homeStaff }[role]();
+    const h = { applicant: homeApplicant, visitor: homeVisitor, umpire: homeUmpire, staff: homeStaff }[role]();
     view.innerHTML = previewBar() + `
       <header class="head">
         <div><h1 class="hello">G'day, <strong>${esc(SAMPLE.profile.preferred_name)}.</strong></h1><p class="sub">${esc(h.sub)}</p></div>
         <div class="today">${fmt(today, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div>
       </header>
       <div class="home">
-        <section class="hero" aria-label="${esc(h.note)}">${ground(h.callouts)}<p class="hero-note">${esc(h.note)}</p></section>
+        <section class="hero" aria-label="${esc(h.note)}">${h.hero || ground(h.callouts)}<p class="hero-note">${esc(h.note)}</p></section>
         <div class="cards">${h.cards}</div>
         <div class="panels">${h.panels}</div>
       </div>`;
+    flyPlanes();
     firstPaint = false;
   }
 
@@ -929,6 +1125,22 @@
       render(); return;
     }
     const t0 = e.target, S = SAMPLE;
+    const pick = t0.closest("[data-pick]");
+    if (pick) {
+      const f = pick.dataset.pick, val = pick.dataset.val;
+      if (pick.dataset.multi) visit[f] = visit[f].includes(val) ? visit[f].filter((x) => x !== val) : visit[f].concat(val); else visit[f] = val;
+      visitError = ""; saveVisit(); render(); const again = $(`[data-pick="${f}"][data-val="${val}"]`); if (again) again.focus(); return;
+    }
+    if (t0.closest("[data-visit-back]")) { visit.step = Math.max(0, visit.step - 1); visitError = ""; saveVisit(); render(); return; }
+    if (t0.closest("[data-visit-resend]")) { sendVisitLink(); return; }
+    if (t0.closest("[data-visit-edit]")) { visit.sent = false; visit.step = 0; visitError = ""; saveVisit(); render(); return; }
+    const vs = t0.closest("[data-vstep]");
+    if (vs) {
+      const i = +vs.dataset.vstep; if (i === 0) return; // the profile step is done by definition
+      S.visitSteps[i].done = !S.visitSteps[i].done;
+      if (mode === "live") store.set("usafl.hub.visitTicks", S.visitSteps.map((s, k) => (s.done ? k : -1)).filter((k) => k > 0));
+      render(); return;
+    }
     if (t0.closest("[data-preview]")) { mode = "preview"; firstPaint = true; go("#/home"); return; }
     if (t0.closest("[data-signin]")) { mode = "gate"; gate.sent = ""; gate.error = ""; gate.notice = ""; firstPaint = true; render(); return; }
     if (t0.closest("[data-signout]")) { mode = "gate"; me = null; gate.sent = ""; gate.error = ""; gate.notice = "You're signed out."; firstPaint = true; Hub.signOut(); render(); return; }
@@ -1024,10 +1236,17 @@
     render(); showToast(`Sent ${c.name} to the committee`, () => { Object.assign(c, was); render(); });
   });
   document.addEventListener("input", (e) => {
+    const fv = e.target.dataset && e.target.dataset.v;
+    if (fv) {
+      visit[fv] = e.target.value; saveVisit();
+      if (fv === "first" || fv === "last" || fv === "league") { const dd = document.querySelectorAll(".pass-facts dd"), name = [visit.first, visit.last].filter(Boolean).join(" ").trim(), put = (el, t) => { el.textContent = t; el.classList.toggle("blank", !t); }; put(dd[0], name); if (fv === "league") put(dd[1], visit.league); }
+      return;
+    }
     if (e.target.id !== "mem-q") return;
     ui.q = e.target.value; ui.memOpen = null; $("#mem-rows").innerHTML = memberRows(); syncMembers();
   });
   document.addEventListener("submit", (e) => {
+    if (e.target.id === "visit-form") { e.preventDefault(); visitNext(); return; }
     if (e.target.id !== "signin") return;
     e.preventDefault();
     const email = $("#si-email").value.trim();

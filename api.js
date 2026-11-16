@@ -39,8 +39,19 @@ window.Hub = (function () {
   return {
     get signedIn() { return !!(session && session.user_id); },
     // Emails a sign-in link. A new address gets an account (and a profile row, role "applicant").
-    sendLink(email, backTo) {
-      return call("/auth/v1/otp?redirect_to=" + encodeURIComponent(backTo), { method: "POST", body: JSON.stringify({ email, create_user: true }) });
+    // `data` is kept on a NEW account (user_metadata), so answers given before sign-up survive
+    // even when the link is opened on a different device.
+    sendLink(email, backTo, data) {
+      return call("/auth/v1/otp?redirect_to=" + encodeURIComponent(backTo), { method: "POST", body: JSON.stringify({ email, create_user: true, data: data || {} }) });
+    },
+    async metadata() { return (await call("/auth/v1/user", {}, true)).user_metadata || {}; },
+    async application() {
+      const rows = await call("/rest/v1/applications?select=*&user_id=eq." + session.user_id, {}, true);
+      return rows[0] || null;
+    },
+    async submitApplication(answers) {
+      const rows = await call("/rest/v1/applications", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ user_id: session.user_id, status: "submitted", answers }) }, true);
+      return rows[0];
     },
     // The emailed link comes back as #access_token=…&refresh_token=… (or #error=…). Returns "in", "error" or null.
     takeRedirect(hash) {
