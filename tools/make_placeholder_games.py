@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate a PLACEHOLDER game draw (games.js) for every field that has umpires assigned.
 
-Usage: python3 tools/make_placeholder_games.py > games.js
+Usage: python3 tools/make_placeholder_games.py > nationals/games.js
 
 Club names come from aussierulesusa.com/clubs. Each club is placed in a division
 (men's MD1-MD5, one women's division WD1); each game is two teams from the same division, plus a club on Boundary / Timekeeping / Scoring duty.
@@ -37,7 +37,7 @@ WOMENS_DIVS = ["WD1"]  # single women's division
 
 
 def main():
-    src = open("data.js").read()
+    src = open("nationals/data.js").read()
     umpires = json.loads(re.search(r"window\.UMPIRES = (.*?);\nwindow\.SLOT_ORDER", src, re.S).group(1))
     order = json.loads(re.search(r"window\.SLOT_ORDER = (.*?);", src).group(1))
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build games.js (the real draw) from the usaflnationals.app project's src/data.js.
 
-Usage: python3 tools/import_fixture.py [/path/to/Nationals/app/src/data.js] > games.js
+Usage: python3 tools/import_fixture.py [/path/to/Nationals/app/src/data.js] > nationals/games.js
 
 Reads TEAMS, GAMES and the boundary / timekeeping / scoring DUTY_GRID, and writes one entry
 per game keyed day|time|field (e.g. "sat|9am|1"), the same keys the umpire schedule uses.

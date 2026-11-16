@@ -1,5 +1,11 @@
 # USAFL Umpires — Nationals 2026 App
 
+> **Layout, November 2026.** The site root (`index.html`, `hub.css`, `hub.js`, `api.js`) is now the
+> year-round umpiring hub. The Nationals 2026 app described below moved, unchanged, into
+> `nationals/` (so `data.js`, `live.json`, `app.js` and so on are `nationals/data.js`, …), and is
+> served at `/nationals/`. `fonts/` and `icons/` stay at the root and are shared. The root `sw.js`
+> only retires the old offline worker; leave it in place.
+
 An all-in-one mobile web app for umpires at the USAFL National Championships
 (Sarasota, FL · Oct 16–18, 2026). Pick your name once and the home screen shows
 your next game, field and crew; see who's on every field hour by hour, ask the

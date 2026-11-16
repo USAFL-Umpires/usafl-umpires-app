@@ -338,7 +338,7 @@
     sh.setAttribute("role", "dialog");
     sh.setAttribute("aria-label", `Open in ${BROWSER}`);
     sh.innerHTML = `<div class="grab-hit"><div class="grab"></div></div><div class="sh-body">
-      <img class="inapp-logo" src="icons/icon-192.png" alt="" />
+      <img class="inapp-logo" src="../icons/icon-192.png" alt="" />
       <h3 class="inapp-t">Open in ${BROWSER} to get the app</h3>
       <p class="inapp-p">You're viewing this inside ${esc(IN_APP)}, which can't add apps to your home screen. One tap moves you across to ${BROWSER}.</p>
       ${openButton()}
@@ -568,7 +568,7 @@
   // Studio credit at the foot of Home and More.
   function madeBy() {
     return `<a class="made-by pressable" href="https://outsetdigital.com.au" target="_blank" rel="noopener">
-      <div class="mb-top"><span class="eyebrow">Designed & built by</span><img src="icons/outset-logo-white.png" alt="Outset" width="104" height="32" /></div>
+      <div class="mb-top"><span class="eyebrow">Designed & built by</span><img src="../icons/outset-logo-white.png" alt="Outset" width="104" height="32" /></div>
       <p>Websites, apps and branding for businesses that want to look the part. Like this one.</p>
       <span class="mb-link">outsetdigital.com.au${icon("chevR", "xs")}</span>
     </a>`;
@@ -583,7 +583,7 @@
     if (isStandalone()) return "";
     if (IN_APP) {
       return `<div class="install-card" id="installCard">
-        <div class="ic-top"><img src="icons/icon-192.png" alt="" /><div><b>Open in ${BROWSER} to get the app</b><span>${esc(IN_APP)} can't add apps to your home screen. Open this page in ${BROWSER} first.</span></div></div>
+        <div class="ic-top"><img src="../icons/icon-192.png" alt="" /><div><b>Open in ${BROWSER} to get the app</b><span>${esc(IN_APP)} can't add apps to your home screen. Open this page in ${BROWSER} first.</span></div></div>
         ${openButton()}
         <div class="eyebrow inapp-or">If nothing happens</div>
         ${inAppSteps()}
@@ -596,7 +596,7 @@
     else if (IS_ANDROID) body = `<ol class="steps">${step(1, "moreV", "Tap the <b>menu</b> in Chrome")}${step(2, "download", "Choose <b>Install app</b>")}</ol>`;
     else body = `<ol class="steps">${step(1, "share", "Tap <b>Share</b> in Safari")}${step(2, "plusSq", "Choose <b>Add to Home Screen</b>")}</ol>`;
     return `<div class="install-card" id="installCard">
-      <div class="ic-top"><img src="icons/icon-192.png" alt="" /><div><b>Add to your home screen</b><span>Opens full screen like an app, and works offline at the fields.</span></div></div>
+      <div class="ic-top"><img src="../icons/icon-192.png" alt="" /><div><b>Add to your home screen</b><span>Opens full screen like an app, and works offline at the fields.</span></div></div>
       ${body}
     </div>`;
   }
@@ -616,7 +616,7 @@
     render(`
       <div class="welcome">
         <div class="stagger">
-          <img class="logo" src="icons/icon-192.png" alt="USAFL Umpires Association" />
+          <img class="logo" src="../icons/icon-192.png" alt="USAFL Umpires Association" />
           <h1 class="page-title">Nationals<br/><em>${T.year}</em></h1>
           <p class="lead">${esc(T.city)} · ${esc(T.dates.replace(`, ${T.year}`, ""))}. Find your name to see every game, field and crew for the weekend.</p>
           <label class="search">${icon("search", "sm")}<input id="wq" placeholder="Type your name" autocomplete="off" autocapitalize="words" /></label>
@@ -680,7 +680,7 @@
 
     render(`
       <div class="topbar">
-        <div class="brand"><img src="icons/icon-192.png" alt="" /><div><div class="b1">USAFL Umpires</div><div class="b2">Nationals ${T.year} · ${esc(T.city)}</div></div></div>
+        <div class="brand"><img src="../icons/icon-192.png" alt="" /><div><div class="b1">USAFL Umpires</div><div class="b2">Nationals ${T.year} · ${esc(T.city)}</div></div></div>
         <div class="top-actions">
           <button class="me-btn theme-btn pressable" id="theme" aria-label="${theme() === "dark" ? "Switch to light mode" : "Switch to dark mode"}">${icon(theme() === "dark" ? "sun" : "moon", "sm")}</button>
           <a class="me-btn pressable" href="#/more" aria-label="Profile">${me ? esc(initials(me)) : icon("user", "sm")}</a>
@@ -1366,7 +1366,7 @@
     const bar = document.createElement("div");
     bar.className = "a2hs";
     const show = (mode) => {
-      bar.innerHTML = `<img src="icons/icon-192.png" alt="" />
+      bar.innerHTML = `<img src="../icons/icon-192.png" alt="" />
         <div class="tx"><b>Add to your home screen</b>${mode === "android" ? "Full screen, works offline." : "Tap Share, then “Add to Home Screen.”"}</div>
         ${mode === "android" ? `<button class="btn sm" data-go>Install</button>` : ""}
         <button class="x" data-x aria-label="Dismiss">${icon("x", "sm")}</button>`;

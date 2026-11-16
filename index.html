@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" id="theme-color" content="#f6f5f3" />
   <script>
-    // Apply the saved theme (or the phone's setting) before first paint.
+    // Same saved theme as the Nationals app, applied before first paint.
     (function () {
       var t = null;
       try { t = JSON.parse(localStorage.getItem("usafl.theme")); } catch (e) {}
@@ -14,39 +14,28 @@
       document.getElementById("theme-color").content = t === "dark" ? "#0e0d0c" : "#f6f5f3";
     })();
   </script>
-  <title>USAFL Umpires — Nationals 2026</title>
-
-  <!-- Installable PWA -->
-  <link rel="manifest" href="manifest.webmanifest" />
+  <script>
+    // The Nationals 2026 app used to live at this address. Send its old links and bookmarks on to /nationals/.
+    (function () {
+      var page = location.hash.replace(/^#\/?/, "").split("/")[0];
+      var old = ["schedule", "umpires", "u", "fields", "jeff", "guide", "quiz", "welcome", "admin"].indexOf(page) > -1;
+      if (old || /[?&](install|now|inapp)=/.test(location.search)) location.replace("nationals/" + location.search + location.hash);
+    })();
+    // That app's offline worker also lived here. Its replacement (sw.js) switches itself off; nudge it to update.
+    if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(function (rs) {
+      rs.forEach(function (r) { if (new URL(r.scope).pathname === "/") r.update().catch(function () {}); });
+    }).catch(function () {});
+  </script>
+  <title>USAFL Umpires</title>
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-
-  <!-- iOS: add-to-home-screen, fullscreen, app title -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="USAFL Umps" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-
   <link rel="preload" href="fonts/barlow-condensed-800.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="fonts/barlow-condensed-800-italic.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="hub.css" />
 </head>
 <body>
-  <div id="phone">
-    <div id="app"></div>
-    <nav id="tabbar"></nav>
-  </div>
-  <script src="data.js"></script>
-  <script src="games.js"></script>
-  <script src="content.js"></script>
-  <script src="app.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").catch(() => {});
-      });
-    }
-  </script>
+  <aside id="side"></aside>
+  <main id="main"><div class="wrap" id="view"></div></main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="api.js"></script>
+  <script src="hub.js"></script>
 </body>
 </html>

@@ -88,6 +88,7 @@
     if (status === 409 || status === 422) return "The project changed while you were publishing. Try again.";
     return msg || `GitHub error (${status}).`;
   }
+  const DIR = "nationals/"; // where this app lives in the repository
   const repoPath = (p) => `/repos/${REPO.owner}/${REPO.repo}${p}`;
   function b64(str) {
     const bytes = new TextEncoder().encode(str);
@@ -97,12 +98,12 @@
   }
   const unb64 = (b) => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
   async function getFile(path, ref) {
-    return gh(repoPath(`/contents/${path}?ref=${encodeURIComponent(ref || REPO.branch)}`));
+    return gh(repoPath(`/contents/${DIR}${path}?ref=${encodeURIComponent(ref || REPO.branch)}`));
   }
   async function putFile(path, text, message) {
     let sha;
     try { sha = (await getFile(path)).sha; } catch (e) { if (e.status !== 404) throw e; }
-    return gh(repoPath(`/contents/${path}`), { method: "PUT", body: JSON.stringify({ message, content: b64(text), branch: REPO.branch, sha }) });
+    return gh(repoPath(`/contents/${DIR}${path}`), { method: "PUT", body: JSON.stringify({ message, content: b64(text), branch: REPO.branch, sha }) });
   }
   async function testToken() {
     const repo = await gh(repoPath(""));
@@ -773,7 +774,7 @@
     if (!token()) return;
     const box = document.getElementById("hist");
     try {
-      const commits = await gh(repoPath(`/commits?path=data.js&sha=${REPO.branch}&per_page=20`));
+      const commits = await gh(repoPath(`/commits?path=${DIR}data.js&sha=${REPO.branch}&per_page=20`));
       box.innerHTML = `<div class="list plain">${commits.map((c, i) => `<div class="row hrow"><span class="main"><span class="t1">${esc(c.commit.message.split("\n")[0])}</span><span class="t2">${esc(fmtDate(c.commit.author.date))}${i === 0 ? " · live now" : ""}</span></span>${i === 0 ? '<span class="tag oz">Live</span>' : `<button class="btn ghost sm" data-sha="${c.sha}">Restore</button>`}</div>`).join("")}</div>`;
       box.querySelectorAll("[data-sha]").forEach((b) => b.addEventListener("click", () => restore(b.dataset.sha)));
     } catch (e) {

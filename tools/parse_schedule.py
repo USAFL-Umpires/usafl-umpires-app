@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Parse a USAFL Nationals umpire assignment spreadsheet into data.js.
 
-Usage: python3 tools/parse_schedule.py "<path to xlsx>" [--days sat,sun,finals] > data.js
+Usage: python3 tools/parse_schedule.py "<path to xlsx>" [--days sat,sun,finals] > nationals/data.js
 
 The layout is detected rather than assumed, so new editions still parse:
   * header row = the row containing "F Name"; name/club/level columns found by their labels
