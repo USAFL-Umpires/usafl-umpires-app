@@ -8,3 +8,6 @@ app/standalone.html
 # Source spreadsheets / docs (keep private; not needed to run the app)
 *.xlsx
 *.docx
+
+# Original photos dropped in for the hub (only the cropped, web-sized copies in img/ are published)
+photos-in/

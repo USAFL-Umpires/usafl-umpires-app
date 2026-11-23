@@ -132,7 +132,7 @@ svg.i.sm { width: 16px; height: 16px; }
 .sub { color: var(--ink-2); font-size: 15.5px; margin-top: 10px; max-width: 44ch; }
 .today { font-size: 13px; color: var(--ink-3); white-space: nowrap; padding-top: 8px; }
 
-.home { display: grid; gap: 18px; margin-top: 6px;
+.home { display: grid; gap: 18px; margin-top: 28px;
   grid-template-columns: minmax(380px, 5fr) minmax(0, 7fr);
   grid-template-areas: "hero cards" "hero panels"; align-items: start; }
 .hero { grid-area: hero; }
@@ -566,6 +566,69 @@ body.gate .wrap { max-width: 1180px; padding-top: 0; padding-bottom: 0; }
 }
 
 
+/* ---------- photos ---------- */
+.ph { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* A photo that dissolves into the page (no frame), like a cut-out with soft edges. */
+.fade { position: relative; overflow: hidden; }
+.fade .ph { -webkit-mask-image: var(--fade-mask); mask-image: var(--fade-mask); -webkit-mask-composite: source-in; mask-composite: intersect; }
+
+.gate-ph { height: min(760px, 100dvh); border-radius: 0; margin-right: -32px; }
+.gate-ph { --fade-mask: linear-gradient(90deg, transparent 0%, #000 34%, #000 82%, transparent 100%), linear-gradient(0deg, transparent 0%, #000 26%), linear-gradient(180deg, transparent 0%, #000 14%); }
+
+/* Home with no hero (everyone but visiting umpires): cards across the top, panels below. */
+.home.solo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cards" "panels"; }
+
+.mod { overflow: hidden; }
+.mod-ph { margin: -16px -18px 14px; height: 150px; overflow: hidden; }
+.sent-ph { margin: 26px 0 0; border-radius: 18px; overflow: hidden; aspect-ratio: 16 / 9; max-width: 440px; }
+
+@media (max-width: 900px) {
+  body.gate .gate-wrap:not(.visit) { align-content: start; gap: 0; min-height: 0; }
+  body.gate .gate-wrap:not(.visit) .gate-art { display: block; order: -1; margin: 0 -16px; }
+  body.gate .gate-wrap:not(.visit) .gate-main { min-height: 0; padding-top: 0; }
+  .gate-ph { height: 300px; margin: 0; }
+  .gate-ph .ph { object-position: 46% 22% !important; }
+  .gate-ph { --fade-mask: linear-gradient(0deg, transparent 0%, #000 45%); }
+}
+
+/* ---------- Up next: the one loud card on Home (black; white in dark mode) ---------- */
+.up { --up-bg: #15120f; --up-ink: #f6f5f3; --up-2: rgba(246, 245, 243, 0.62); --up-line: rgba(246, 245, 243, 0.14); --up-hot: var(--brand); --up-hot-ink: #fff; --up-big: var(--brand);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; height: 100%; min-height: 380px;
+  background: var(--up-bg); color: var(--up-ink); border-radius: var(--r-lg); padding: 22px 24px 22px; }
+:root[data-theme="dark"] .up { --up-bg: #f6f5f3; --up-ink: #15120f; --up-2: rgba(21, 18, 15, 0.62); --up-line: rgba(21, 18, 15, 0.12); --up-hot: #e04e1a; --up-hot-ink: #fff; --up-big: #e04e1a; }
+.up::after { content: ""; position: absolute; right: -90px; top: -90px; width: 260px; height: 260px; border-radius: 50%; border: 1.5px solid var(--up-line); box-shadow: 0 0 0 40px transparent, inset 0 0 0 40px transparent; pointer-events: none; }
+.up::before { content: ""; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; border: 1.5px solid var(--up-line); pointer-events: none; }
+.up-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--up-2); }
+.up-tag { padding: 3px 10px; border-radius: 99px; background: var(--up-line); color: var(--up-ink); font-size: 12px; }
+.up-big { display: flex; align-items: baseline; gap: 8px; margin-top: 22px; color: var(--up-big); }
+.up-big .num { font: 800 clamp(76px, 8vw, 108px)/0.82 var(--display); letter-spacing: -0.02em; }
+.up-big.word .num { font-size: clamp(54px, 5.2vw, 72px); white-space: nowrap; }
+.up-big small { font: 700 26px/1 var(--display); color: var(--up-ink); }
+.up h2 { font: 700 28px/1.05 var(--display); margin-top: 16px; max-width: 22ch; }
+.up > p { color: var(--up-2); font-size: 14px; margin-top: 6px; max-width: 40ch; }
+.up-rows { margin-top: 18px; border-top: 1px solid var(--up-line); }
+.up-rows div { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--up-line); font-size: 13.5px; }
+.up-rows dt { color: var(--up-2); }
+.up-rows dd { font-weight: 600; text-align: right; }
+.up-crew { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 13px; color: var(--up-2); }
+.up-faces { display: flex; }
+.up-faces i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--display); font-style: normal; background: var(--up-ink); color: var(--up-bg); box-shadow: 0 0 0 2px var(--up-bg); }
+.up-faces i + i { margin-left: -8px; background: var(--up-line); color: var(--up-ink); }
+.up-pips { display: flex; gap: 5px; margin-top: 18px; }
+.up-pips i { flex: 1; height: 6px; border-radius: 3px; background: var(--up-line); }
+.up-pips i.on { background: var(--up-ink); }
+.up-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 22px; }
+.up .btn { padding: 10px 16px; font-size: 14px; border-radius: 12px; }
+.up .btn.hot { background: var(--up-hot); color: var(--up-hot-ink); }
+.up .btn.ghost { background: var(--up-line); color: var(--up-ink); }
+.home .hero { align-self: stretch; }
+@media (max-width: 1020px) { .up { min-height: 0; } }
+
+.brand.big { align-items: center; gap: 14px; }
+.brand.big img { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 8px 22px -10px rgba(241, 88, 34, 0.55); }
+.brand.big b { font: 800 30px/1 var(--display); letter-spacing: 0.005em; }
+@media (max-width: 900px) { .brand.big img { width: 52px; height: 52px; border-radius: 13px; } .brand.big b { font-size: 26px; } }
+
 /* toast: confirms what just happened, with a way back */
 #toast { position: fixed; top: 18px; right: 22px; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 500; box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.2s ease, transform 0.25s var(--ease); }
 #toast.on { opacity: 1; transform: none; pointer-events: auto; }
@@ -627,3 +690,5 @@ body.gate .wrap { max-width: 1180px; padding-top: 0; padding-bottom: 0; }
 .wide .decided { margin-bottom: 12px; }
 .list .seg { max-width: calc(100% - 12px); overflow-x: auto; scrollbar-width: none; }
 .page-head .notice { margin: 12px 0 0; max-width: 60ch; }
+.home.solo .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 820px) { .home.solo .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

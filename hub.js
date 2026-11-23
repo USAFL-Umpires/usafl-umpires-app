@@ -319,9 +319,65 @@
       <div class="row-aside">${ago(a.days)}</div>
     </div>`).join(""));
 
+  // ---------- home: "Up next", the one thing that matters most right now (black; orange in dark mode) ----------
+  const countdown = (d) => { const n = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(today).setHours(0, 0, 0, 0)) / DAY); return n <= 0 ? ["Today", ""] : n === 1 ? ["Tomorrow", ""] : [String(n), "days"]; };
+  const up = (o) => `
+    <section class="up" aria-label="Up next">
+      <div class="up-top"><span>${esc(o.label)}</span>${o.tag ? `<span class="up-tag">${o.tag}</span>` : ""}</div>
+      <div class="up-big ${/^\d+$/.test(o.big) ? "" : "word"}"><span class="num">${esc(o.big)}</span>${o.unit ? `<small>${esc(o.unit)}</small>` : ""}</div>
+      <h2>${esc(o.title)}</h2>${o.sub ? `<p>${esc(o.sub)}</p>` : ""}
+      ${o.rows ? `<dl class="up-rows">${o.rows.map((r) => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl>` : ""}
+      ${o.extra || ""}
+      <div class="up-acts">${o.acts}</div>
+    </section>`;
+  // A one-event calendar file, so "Add to calendar" works with Apple, Google and Outlook without any account.
+  function icsLink(a) {
+    const stamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const day = (d) => fmt(d, { year: "numeric" }) + fmt(d, { month: "2-digit" }) + fmt(d, { day: "2-digit" });
+    let when, what;
+    if (a.starts_at) { when = ["DTSTART:" + stamp(a.starts_at), "DTEND:" + stamp(new Date(a.starts_at.getTime() + 2 * 36e5))]; what = ["SUMMARY:" + cap(a.position) + " umpire: " + a.match, "LOCATION:" + a.venue, "DESCRIPTION:" + a.event]; }
+    else { const end = new Date((a.ends_on || a.starts_on).getTime() + DAY); when = ["DTSTART;VALUE=DATE:" + day(a.starts_on), "DTEND;VALUE=DATE:" + day(end)]; what = ["SUMMARY:" + a.name, "LOCATION:" + a.location, "DESCRIPTION:" + (a.description || "USAFL umpiring")]; }
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//USAFL Umpires//Hub//EN", "BEGIN:VEVENT", "UID:" + stamp(a.starts_at || a.starts_on) + "@usaflumpires.com", "DTSTAMP:" + stamp(new Date())].concat(when, what, ["END:VEVENT", "END:VCALENDAR"]).join("\r\n");
+    return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+  }
+  function upUmpire() {
+    const a = SAMPLE.appointments[0];
+    if (!a) {
+      // Not appointed to anything yet: point at the next event on the calendar instead, so the card is still useful.
+      const ev = SAMPLE.events.find((e) => e.published);
+      if (!ev) return up({ label: "Next tournament", big: "Off-season", title: "No games or events on the calendar yet", sub: "The committee posts the season here as soon as it's set. A good time to finish your learning and check your compliance.",
+        acts: `<a class="btn hot" href="#/learning">Go to learning</a><a class="btn ghost" href="#/compliance">Compliance</a>` });
+      const c = countdown(ev.starts_on);
+      return up({ label: "Next tournament", tag: "Not appointed yet", big: c[0], unit: c[1], title: ev.name,
+        sub: "You're not on a game yet. Appointments usually come out in the week before each round, and they'll show here.",
+        rows: [["When", ev.ends_on ? `${fmt(ev.starts_on, { weekday: "short", month: "short", day: "numeric" })} to ${fmt(ev.ends_on, { weekday: "short", month: "short", day: "numeric" })}` : fmt(ev.starts_on, { weekday: "long", month: "short", day: "numeric" })], ["Where", ev.location]],
+        acts: `<a class="btn hot" href="${icsLink(ev)}" download="usafl-event.ics">${icon("calendar", "sm")} Add to calendar</a><a class="btn ghost" href="#/events">All events</a>` });
+    }
+    const c = countdown(a.starts_at);
+    return up({ label: "Your next game", tag: cap(a.position) + " umpire", big: c[0], unit: c[1], title: a.match,
+      rows: [["When", `${fmt(a.starts_at, { weekday: "long", month: "short", day: "numeric" })}, ${time(a.starts_at)}`], ["Where", a.venue], ["Event", a.event]],
+      extra: a.with ? `<div class="up-crew"><span class="up-faces">${["Sam Carter"].concat(a.with).map((n) => `<i>${esc(initials(n))}</i>`).join("")}</span><span>With ${esc(a.with.join(" and "))}</span></div>` : "",
+      acts: `<a class="btn hot" href="${icsLink(a)}" download="usafl-game.ics">${icon("calendar", "sm")} Add to calendar</a><a class="btn ghost" href="#/appointments">All games</a>` });
+  }
+  function upApplicant() {
+    const O = SAMPLE.onboarding, i = O.findIndex((o) => !o.done), done = O.filter((o) => o.done).length;
+    if (i < 0) return up({ label: "Your next step", big: "Done", title: "You've finished getting started", sub: "The committee will be in touch about your application.", acts: `<a class="btn ghost" href="#/application">Your application</a>` });
+    return up({ label: "Your next step", tag: `${done} of ${O.length} done`, big: `Step ${i + 1}`, title: O[i].title, sub: O[i].body,
+      extra: `<div class="up-pips">${O.map((o) => `<i class="${o.done ? "on" : ""}"></i>`).join("")}</div>`,
+      acts: `<button class="btn hot" data-step="${i}">${icon("check", "sm")} Mark as done</button><a class="btn ghost" href="#/getting-started">All steps</a>` });
+  }
+  function upStaff() {
+    const S = SAMPLE, q = S.queue, d = S.docsWaiting, n = q.length + d.length, old = q.slice().sort((x, y) => y.days - x.days)[0];
+    if (!n) return up({ label: "Waiting on the committee", big: "0", title: "You're all caught up", sub: "New applications and documents show up here.", acts: `<a class="btn ghost" href="#/members">Members</a>` });
+    return up({ label: "Waiting on the committee", big: String(n), unit: n === 1 ? "thing" : "things",
+      title: `${q.length} ${q.length === 1 ? "application" : "applications"} and ${d.length} ${d.length === 1 ? "document" : "documents"}`,
+      sub: old ? `${old.name} has waited longest: ${ago(old.days).toLowerCase()}.` : "",
+      acts: `${old ? `<a class="btn hot" href="#/applications/${old.id}">Review ${esc(old.name.split(" ")[0])}</a>` : ""}${d.length ? `<a class="btn ghost" href="#/compliance">Check documents</a>` : ""}` });
+  }
+
   // ---------- home, per role ----------
   function homeUmpire() {
-    const S = SAMPLE, next = S.appointments[0], daysToNext = Math.round((next.starts_at - today) / DAY);
+    const S = SAMPLE, next = S.appointments[0];
     const due = S.compliance.filter((c) => c.status === "missing");
     const done = S.compliance.filter((c) => c.status === "approved").length;
     const gaps = profileGaps();
@@ -329,19 +385,19 @@
     const games = S.gamesByMonth.reduce((n, p) => n + p[1], 0);
     const mod = S.learning[0];
     return {
-      sub: `You're on the field ${fmt(next.starts_at, { weekday: "long" })} at ${time(next.starts_at)}. ${due.length ? `${due[0].name} needs you before ${dayMonth(due[0].due)}.` : "Everything's up to date."}`,
+      sub: `${next ? `You're on the field ${fmt(next.starts_at, { weekday: "long" })} at ${time(next.starts_at)}.` : "You're not on any games yet."} ${due.length ? `${due[0].name} needs you before ${dayMonth(due[0].due)}.` : "Everything's up to date."}`,
       callouts: {
         goal: { name: "Goal", note: "Not accredited yet", off: true },
         field: { name: "Field", num: "Level " + field.level, note: `${field.games} games this year` },
         boundary: { name: "Boundary", num: "Level " + bnd.level, note: `${bnd.games} games this year` },
       },
-      note: "Where you're accredited to umpire.",
+      hero: upUmpire(), note: "",
       cards: [
         { to: "accreditation", name: "Accreditation", tone: "good", val: "Level " + field.level, unit: "Field umpire", viz: pips(Array.from({ length: field.of }, (_, i) => (i < field.level ? "on" : ""))), foot: `<span>Valid to ${monthYear(field.expires_on)}</span>` },
         { to: "compliance", name: "Compliance", tone: due.length ? "due" : "good", val: `${done} of ${S.compliance.length}`, unit: "requirements complete", viz: pips(S.compliance.map((c) => (c.status === "approved" ? "on" : c.status === "missing" ? "wait" : ""))), foot: due.length ? `<span class="flag">${esc(due[0].name)} due ${dayMonth(due[0].due)}</span>` : done === S.compliance.length ? `<span class="ok">All current</span>` : `<span>With the committee</span>` },
         { to: "appointments", name: "Games", val: games, unit: "umpired this year", viz: bars(S.gamesByMonth), foot: `<span>${S.gamesByMonth[0][0]}</span><span>${S.gamesByMonth[S.gamesByMonth.length - 1][0]}</span>` },
         { to: "learning", name: "Learning", val: S.learning.length, unit: "modules to finish", viz: meter(mod.done), foot: `<span>${esc(mod.title)}</span><span>${fmt(mod.due_on, { weekday: "short" })}</span>` },
-        { to: "appointments", name: "Next game", val: daysToNext + " days", unit: `${fmt(next.starts_at, { weekday: "short" })} ${dayMonth(next.starts_at)}, ${time(next.starts_at)}`, foot: `<span class="chip ${next.position}">${cap(next.position)}</span><span>${esc(next.venue)}</span>` },
+        (() => { const ev = SAMPLE.events.filter((e) => e.published), nx = ev[0]; return { to: "events", name: "Events", val: ev.length, unit: "on the calendar", foot: nx ? `<span>Next: ${esc(nx.name)}</span><span>${dayMonth(nx.starts_on)}</span>` : `<span>Nothing posted yet</span>` }; })(),
         { to: "profile", name: "Profile", tone: gaps.length ? "" : "good", val: profilePct() + "%", unit: "complete", viz: meter(profilePct() / 100), foot: gaps.length ? `<span>Add your ${esc(gaps[0])}</span>` : `<span class="ok">All filled in</span>` },
       ].map(stat).join(""),
       panels: panel("Coming up", "appointments", S.appointments.map((a, i) => `
@@ -349,7 +405,7 @@
           <div class="day ${i === 0 ? "next" : ""}"><small>${fmt(a.starts_at, { month: "short" })}</small><span class="num">${a.starts_at.getDate()}</span></div>
           <div class="row-main"><b>${esc(a.match)}</b><span>${fmt(a.starts_at, { weekday: "short" })} ${time(a.starts_at)}, ${esc(a.venue)}, ${esc(a.event)}</span></div>
           <span class="chip ${a.position}">${cap(a.position)}</span>
-        </div>`).join("")) + announcements(),
+        </div>`).join("") || `<p class="empty">No games yet. Your appointments show here as soon as the committee sets them.</p>`) + announcements(),
     };
   }
 
@@ -364,10 +420,9 @@
         field: { name: "Field umpire", note: "Runs the game: bounces, marks, free kicks." },
         boundary: { name: "Boundary umpire", note: "Calls the ball out and throws it back in." },
       },
-      note: "Three kinds of umpire work every game. You can train for any of them.",
+      hero: upApplicant(), note: "",
       cards: panel("Your application", "application", `
-        <ol class="steps">${names.map((n, i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"${i === at ? ' aria-current="step"' : ""}>${n}</li>`).join("")}</ol>
-        <p class="lede">Submitted ${ago(S.application.submitted_days).toLowerCase()}. The committee reviews applications every fortnight, and you'll get an email as soon as there's a decision.</p>`, "wide"),
+        <ol class="steps">${names.map((n, i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"${i === at ? ' aria-current="step"' : ""}>${n}</li>`).join("")}</ol>`, "wide"),
       panels: panel("Getting started", "getting-started", S.onboarding.map((o, i) => `
         <button class="check" role="checkbox" aria-checked="${o.done}" data-step="${i}">
           <span class="tick">${icon("check", "sm")}</span>
@@ -385,7 +440,7 @@
         field: { name: "Field", num: S.roster.field, unit: "umpires", note: "9 at Level 3" },
         boundary: { name: "Boundary", num: S.roster.boundary, unit: "umpires", note: "Shortest in the West" },
       },
-      note: "Accredited umpires by discipline.",
+      hero: upStaff(), note: "",
       cards: [
         { to: "applications", name: "Applications", tone: S.queue.length ? "due" : "good", val: S.queue.length, unit: "waiting for review", foot: S.queue.length ? `<span class="flag">Oldest is ${S.queue[0].days} days old</span>` : `<span class="ok">All reviewed</span>` },
         { to: "compliance", name: "Documents", tone: S.docsWaiting.length ? "due" : "good", val: S.docsWaiting.length, unit: "to check", foot: S.docsWaiting.length ? `<span>SafeSport ${S.docsWaiting.filter((e) => /SafeSport/.test(e.item)).length}</span><span>Background ${S.docsWaiting.filter((e) => /Background/.test(e.item)).length}</span>` : `<span class="ok">All checked</span>` },
@@ -499,7 +554,6 @@
         <h3>Application</h3>
         <dl class="answers">${cur.answers.map((qa) => `<div><dt>${esc(qa[0])}</dt><dd>${esc(qa[1])}</dd></div>`).join("") || `<p class="hint">No answers were given.</p>`}</dl>
         <h3>Committee notes</h3>
-        <p class="hint">Only coaches and the committee see these.</p>
         ${cur.notes.map((n) => `<div class="note"><b>${esc(n.author)}</b><span>${ago(n.days)}</span><p>${esc(n.body)}</p></div>`).join("")}
         <div class="add-note"><label class="sr" for="note">Add a note about ${esc(cur.name)}</label><textarea id="note" rows="2" placeholder="Add a note"></textarea><button class="btn quiet" data-add-note>Save note</button></div>
       </article>` : "";
@@ -546,7 +600,7 @@
     }).join("");
     return `
       <header class="page-head"><h1>Documents</h1>
-        <p class="sub">${waiting.length ? `${waiting.length} waiting to be checked. Open a file to see it, or tick several and approve them together.` : "Every document has been checked."}</p></header>
+        <p class="sub">${waiting.length ? `${waiting.length} waiting to be checked.` : "Every document has been checked."}</p></header>
       <section class="panel docs">
         <div class="docs-top">
           <div class="seg" role="group" aria-label="Show">${[["waiting", `Waiting ${waiting.length}`], ["checked", "Checked"]].map((f) => `<button data-doc-filter="${f[0]}" aria-pressed="${f[0] === docFilter}">${f[1]}</button>`).join("")}</div>
@@ -582,7 +636,7 @@
   const memSel = new Set();
   const full = (d) => fmt(d, { day: "numeric", month: "short", year: "numeric" });
   const plus = (d, months) => { const x = new Date(d); x.setMonth(x.getMonth() + months); return x; };
-  const head = (title, sub) => `<header class="page-head"><h1>${esc(title)}</h1><p class="sub">${esc(sub)}</p></header>`;
+  const head = (title, sub) => `<header class="page-head"><h1>${esc(title)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ""}</header>`;
   const seg = (key, opts) => `<div class="seg" role="group" aria-label="Show">${opts.map((o) => `<button data-set="${key}=${o[0]}" aria-pressed="${o[0] === ui[key]}">${o[1]}</button>`).join("")}</div>`;
   const dayBlock = (d, next) => `<div class="day ${next ? "next" : ""}"><small>${fmt(d, { month: "short" })}</small><span class="num">${d.getDate()}</span></div>`;
   const dchip = (d) => (d ? `<span class="chip ${d}">${cap(d)}</span>` : `<span class="chip">All umpires</span>`);
@@ -659,11 +713,13 @@
   }
 
   // ---------- learning ----------
+  const MOD_PHOTO = { "Advantage and play on": ["ballup", "50% 25%"], "Holding the ball": ["between", "50% 45%"] };
   function viewLearning() {
     const S = SAMPLE;
     return head("Learning", `${S.learning.length} modules assigned by your coach. The first is due ${fmt(S.learning[0].due_on, { weekday: "long" })}.`) + `
       <div class="mods">${S.learning.map((m) => `
         <section class="panel mod">
+          ${MOD_PHOTO[m.title] ? `<div class="mod-ph">${photo(MOD_PHOTO[m.title][0], "", MOD_PHOTO[m.title][1])}</div>` : ""}
           <div class="mod-top">${dchip(m.discipline)}<span>${m.minutes} min</span></div>
           <h2>${esc(m.title)}</h2><p>${esc(m.summary)}</p>
           ${meter(m.done)}
@@ -723,7 +779,7 @@
         </div>
         <p class="err" id="an-err" hidden>Add a title and a message first.</p>
       </section>` : "";
-    return head("Announcements", staff ? "Write to everyone, or only umpires or prospective umpires." : "News from the committee, newest first.") + `
+    return head("Announcements", "") + `
       <div class="feed">${compose}${list.map((a) => `
         <article class="panel post">
           <div class="post-meta">${a.draft ? `<span class="chip under_review">Draft</span>` : ""}${a.pinned ? `<span class="pinned">${icon("pin", "sm")} Pinned</span>` : ""}<span>${a.draft ? "Not sent" : ago(a.days)}</span>${staff ? `<span>To ${AUDIENCE[a.audience || ""].toLowerCase()}</span>` : ""}</div>
@@ -736,7 +792,7 @@
   function viewProfile() {
     const P = SAMPLE.profile, gaps = profileGaps(), pct = profilePct();
     const f = (id, label, type = "text", extra = "") => `<label class="fld"><span>${label}</span><input type="${type}" id="pf-${id}" value="${esc(P[id] || "")}" ${extra} /></label>`;
-    return head("Profile", "How the committee and your coach reach you, and what other umpires see.") + `
+    return head("Profile", "") + `
       <div class="profile">
         <section class="panel id-card">
           <div class="avatar xl">${esc(initials(P.full_name))}</div>
@@ -778,7 +834,7 @@
   }
   function viewStarted() {
     const O = SAMPLE.onboarding, done = O.filter((o) => o.done).length;
-    return head("Getting started", done === O.length ? "All done. You're ready for your first game." : `${done} of ${O.length} done. You can do these in any order while the committee reviews your application.`) + `
+    return head("Getting started", done === O.length ? "All done. You're ready for your first game." : `${done} of ${O.length} done.`) + `
       <div class="feed"><section class="panel reqs">${pips(O.map((o) => (o.done ? "on" : "")))}
         ${O.map((o, i) => `<button class="check" role="checkbox" aria-checked="${o.done}" data-step="${i}"><span class="tick">${icon("check", "sm")}</span><span class="row-main"><b>${esc(o.title)}</b><span>${esc(o.body)}</span></span></button>`).join("")}
       </section></div>`;
@@ -839,7 +895,7 @@
 
   // ---------- more (phones: everything that doesn't fit the bar) ----------
   function viewMore() {
-    return head("More", "The rest of the hub.") + `<div class="feed"><section class="panel">${NAV[role].filter(Boolean).slice(3).map((n) => `<a class="row" href="#/${n[0]}">${icon(n[2])}<div class="row-main"><b>${n[1]}</b><span>${esc(STUBS[n[0]] || "")}</span></div>${icon("next", "sm")}</a>`).join("")}</section></div>`;
+    return head("More", "") + `<div class="feed"><section class="panel">${NAV[role].filter(Boolean).slice(3).map((n) => `<a class="row" href="#/${n[0]}">${icon(n[2])}<div class="row-main"><b>${n[1]}</b><span>${esc(STUBS[n[0]] || "")}</span></div>${icon("next", "sm")}</a>`).join("")}</section></div>`;
   }
 
   const PAGES = {
@@ -947,28 +1003,29 @@
     const Q = {
       name: [`G'day. What do we call you?`, `Nationals 2027 is in ${NATS.place}, ${NATS.dates}. Your name goes on your pass.`,
         `<div class="two">${text("first", "First name", 'autocomplete="given-name"')}${text("last", "Last name", 'autocomplete="family-name"')}</div>`],
-      home: [`Where's home, ${esc(v.first)}?`, "Pick your state. We'll work out the airport.",
+      home: [`Where's home, ${esc(v.first)}?`, "",
         chips("state", Object.keys(AIRPORT).map((k) => [k])) + text("league", "Which league do you umpire in? (optional)", 'placeholder="For example, Essendon District FL"')],
       what: ["What do you umpire?", "Pick everything you'd be happy to do at Nationals.",
         chips("disciplines", [["field", "Field"], ["boundary", "Boundary"], ["goal", "Goal"]], true)],
-      exp: ["How long have you been at it?", "No wrong answers. Every level of experience is welcome.",
+      exp: ["How long have you been at it?", "",
         chips("years", [["1 to 2 years"], ["3 to 5 years"], ["6 to 10 years"], ["More than 10 years"]]) + `<p class="ask2">And the highest level you've umpired?</p>` + chips("level", [["Juniors"], ["Community seniors"], ["State league"], ["Talent pathway or higher"]])],
-      trip: ["Been to a USAFL Nationals before?", "Either way, you'll be looked after.",
+      trip: ["Been to a USAFL Nationals before?", "",
         chips("been", [["First time"], ["Been before"]]) + `<label class="fld"><span>Anything we should know? (optional)</span><textarea data-v="note" rows="2" placeholder="Travelling with a mate, injuries, coaching experience">${esc(v.note)}</textarea></label>`],
-      heard: ["How did you hear about us?", "Helps us work out where to find the next lot of umpires.",
+      heard: ["How did you hear about us?", "",
         chips("heard", [["A mate or another umpire"], ["My league or umpiring group"], ["Social media"], ["USAFL or a US club"], ["Somewhere else"]])],
-      email: ["Last one. Where do we send your sign-in link?", "No password. Open the link and your profile is waiting.",
+      email: ["Last one. Where do we send your sign-in link?", "",
         `<label class="fld"><span>Email</span><input type="email" data-v="email" value="${esc(v.email)}" autocomplete="email" inputmode="email" /></label>`],
     };
     const body = v.sent ? `
         <h1 class="ask">Check your email, ${esc(v.first)}.</h1>
-        <p class="sub">We sent a link to <b>${esc(v.email)}</b>. Open it and you'll land in your hub, with your pass and what to sort out before you fly.</p>
+        <p class="sub">We sent a link to <b>${esc(v.email)}</b>. Open it on this device to sign in.</p>
         ${visitError ? `<p class="err" role="alert">${esc(visitError)}</p>` : ""}
         <div class="acts"><button class="btn quiet" data-visit-resend ${visitBusy ? "disabled" : ""}>${visitBusy ? "Sending" : "Send it again"}</button><button class="btn quiet" data-visit-edit>Change my answers</button></div>
-        <p class="hint">Nothing after a couple of minutes? Check your spam folder.</p>` : `
+        <p class="hint">Nothing after a couple of minutes? Check your spam folder.</p>
+        <figure class="sent-ph">${photo("crew", "Four USAFL umpires smiling together at Nationals", "50% 35%")}</figure>` : `
         <form id="visit-form" novalidate>
           <h1 class="ask">${Q[key][0]}</h1>
-          <p class="sub">${Q[key][1]}</p>
+          ${Q[key][1] ? `<p class="sub">${Q[key][1]}</p>` : ""}
           ${Q[key][2]}
           ${visitError ? `<p class="err" role="alert">${esc(visitError)}</p>` : ""}
           <div class="acts">${v.step ? `<button type="button" class="btn quiet" data-visit-back>Back</button>` : ""}<button class="btn" ${visitBusy ? "disabled" : ""}>${key === "email" ? (visitBusy ? "Sending" : "Make my profile") : "Next"}</button></div>
@@ -982,7 +1039,7 @@
         <div class="gate-form">${body}</div>
         <a class="linkish" href="#/home">Already have an account? Sign in ${icon("next", "sm")}</a>
       </section>
-      <section class="gate-art">${pass([v.first, v.last].filter(Boolean).join(" "), v, progress, from)}<p class="hero-note">Your pass fills in as you go.</p></section>
+      <section class="gate-art">${pass([v.first, v.last].filter(Boolean).join(" "), v, progress, from)}</section>
     </div>`;
   }
   function visitNext() {
@@ -1028,18 +1085,22 @@
       <div class="profile trip">
         <section>${pass(S.profile.full_name, a, planeAt, from)}</section>
         <div class="stack">
-          <section class="panel wide"><div class="panel-top"><h2>Where your spot is up to</h2></div>${tripSteps()}<p class="lede">The committee confirms visiting umpires once the panel is set.</p></section>
+          <section class="panel wide"><div class="panel-top"><h2>Where your spot is up to</h2></div>${tripSteps()}</section>
           <section class="panel post"><div class="panel-top"><h2>What you told us</h2></div>
-            <dl class="answers">${rows.map((r) => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl>
-            <p class="hint">Something changed? Tell the committee and they'll update it.</p></section>
+            <dl class="answers">${rows.map((r) => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl></section>
         </div>
       </div>`;
   }
   function viewReady() {
     const O = SAMPLE.visitSteps, done = O.filter((o) => o.done).length;
-    return head("Before you fly", done === O.length ? "All sorted. See you in Cincinnati." : `${done} of ${O.length} done. Tick things off as you go.`) + `
+    return head("Before you fly", done === O.length ? "All sorted. See you in Cincinnati." : `${done} of ${O.length} done.`) + `
       <div class="feed"><section class="panel reqs">${pips(O.map((o) => (o.done ? "on" : "")))}${checklist()}</section></div>`;
   }
+
+  // ---------- photos (img/, cropped from the committee's own shots; the umpire is always the subject) ----------
+  const photo = (name, alt, pos, cls = "") => `<img class="ph ${cls}" src="img/${name}.webp" alt="${esc(alt)}" style="object-position:${pos || "50% 50%"}" loading="lazy" decoding="async" />`;
+  // One umpire at work (a goal umpire at the posts). It fades into the page rather than sitting in a box.
+  const fieldPhoto = (cls) => `<div class="fade ${cls}">${photo("goal", "A goal umpire in green at the posts, signalling, with mountains behind", "48% 40%")}</div>`;
 
   // ---------- sign-in ----------
   function viewGate() {
@@ -1051,7 +1112,7 @@
         <div class="acts"><button class="btn quiet" data-resend ${gate.busy ? "disabled" : ""}>${gate.busy ? "Sending" : "Send it again"}</button><button class="btn quiet" data-other-email>Use a different email</button></div>
         <p class="hint">Nothing after a couple of minutes? Check your spam folder.</p>` : `
         <h1 class="hello"><strong>Sign in.</strong></h1>
-        <p class="sub">Enter your email and we'll send you a link. There's no password to remember.</p>
+        <p class="sub">Enter your email and we'll send you a sign-in link.</p>
         ${gate.notice ? `<p class="notice" role="status">${esc(gate.notice)}</p>` : ""}
         <form id="signin" novalidate>
           <label class="fld"><span>Email</span><input type="email" id="si-email" autocomplete="email" inputmode="email" ${gate.error ? 'aria-invalid="true" aria-describedby="si-err"' : ""} /></label>
@@ -1062,16 +1123,12 @@
         <a class="invite" href="#/visit"><b>Coming from Australia for Nationals 2027?</b><span>Make your visiting umpire profile in about two minutes ${icon("next", "sm")}</span></a>`;
     return `<div class="gate-wrap">
       <section class="gate-main">
-        <div class="gate-top"><div class="brand"><img src="icons/icon-192.png" alt="" /><div><b>USAFL Umpires</b><span>The umpiring hub</span></div></div>
+        <div class="gate-top"><div class="brand big"><img src="icons/icon-192.png" alt="USAFL Umpires" /><b>Umpiring Hub</b></div>
           <button class="icon-btn" data-theme-toggle aria-label="Switch to ${dark ? "light" : "dark"} theme">${icon(dark ? "sun" : "moon")}</button></div>
         <div class="gate-form">${form}</div>
         <div class="gate-foot"><button class="linkish" data-preview>Look around with sample data ${icon("next", "sm")}</button><a class="linkish" href="nationals/">Nationals 2026 app ${icon("out", "sm")}</a></div>
       </section>
-      <section class="gate-art" aria-hidden="true">${ground({
-        goal: { name: "Goal umpire", note: "Judges every score and signals it with the flags." },
-        field: { name: "Field umpire", note: "Runs the game: bounces, marks, free kicks." },
-        boundary: { name: "Boundary umpire", note: "Calls the ball out and throws it back in." },
-      })}</section>
+      <section class="gate-art">${fieldPhoto("gate-ph")}</section>
     </div>`;
   }
   async function sendLink(email) {
@@ -1142,8 +1199,8 @@
         <div><h1 class="hello">G'day, <strong>${esc(SAMPLE.profile.preferred_name)}.</strong></h1><p class="sub">${esc(h.sub)}</p></div>
         <div class="today">${fmt(today, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div>
       </header>
-      <div class="home">
-        <section class="hero" aria-label="${esc(h.note)}">${h.hero || ground(h.callouts)}<p class="hero-note">${esc(h.note)}</p></section>
+      <div class="home ${h.hero ? "" : "solo"}">
+        ${h.hero ? `<section class="hero">${h.hero}</section>` : ""}
         <div class="cards">${h.cards}</div>
         <div class="panels">${h.panels}</div>
       </div>`;
@@ -1312,6 +1369,10 @@
     if (appsLive && mode === "live" && route() === "applications" && !parts()[1]) refreshApplications();
   });
   // ---------- boot ----------
+  // Design-preview switches (sample data only): ?preview=nogames, ?preview=offseason
+  const pv = new URLSearchParams(location.search).get("preview");
+  if (pv === "nogames" || pv === "offseason") SAMPLE.appointments = [];
+  if (pv === "offseason") SAMPLE.events = [];
   const back = Hub.takeRedirect(location.hash);
   if (back) history.replaceState(null, "", location.pathname + "#/home");
   if (back === "error") gate.notice = "That link has expired or was already used. Enter your email for a new one.";
