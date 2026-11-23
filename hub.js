@@ -43,6 +43,11 @@
     dots: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
     search: '<circle cx="11" cy="11" r="6"/><path d="m15.5 15.5 4 4"/>',
     up: '<path d="M12 16V5M7.5 9.5 12 5l4.5 4.5M5 19.5h14"/>',
+    play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke-linejoin="round"/>',
+    pause: '<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.6"/>',
+    muted: '<path d="M4.5 9.5v5h3.5l4.5 4v-13l-4.5 4zM16 9.5l4.5 5M20.5 9.5 16 14.5"/>',
+    sound: '<path d="M4.5 9.5v5h3.5l4.5 4v-13l-4.5 4zM16 9a4.500 4.500 0 0 1 0 6M18.500 6.500a8 8 0 0 1 0 11"/>',
+    expand: '<path d="M9 4.500H4.500V9M15 4.500h4.500V9M9 19.500H4.500V15M15 19.500h4.500V15"/>',
     moon: '<path d="M19.500 14.500A8 8 0 0 1 9.500 4.500a8 8 0 1 0 10 10z"/>',
   };
   const icon = (n, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -319,60 +324,57 @@
       <div class="row-aside">${ago(a.days)}</div>
     </div>`).join(""));
 
-  // ---------- home: "Up next", the one thing that matters most right now (black; orange in dark mode) ----------
-  const countdown = (d) => { const n = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(today).setHours(0, 0, 0, 0)) / DAY); return n <= 0 ? ["Today", ""] : n === 1 ? ["Tomorrow", ""] : [String(n), "days"]; };
-  const up = (o) => `
-    <section class="up" aria-label="Up next">
-      <div class="up-top"><span>${esc(o.label)}</span>${o.tag ? `<span class="up-tag">${o.tag}</span>` : ""}</div>
-      <div class="up-big ${/^\d+$/.test(o.big) ? "" : "word"}"><span class="num">${esc(o.big)}</span>${o.unit ? `<small>${esc(o.unit)}</small>` : ""}</div>
-      <h2>${esc(o.title)}</h2>${o.sub ? `<p>${esc(o.sub)}</p>` : ""}
-      ${o.rows ? `<dl class="up-rows">${o.rows.map((r) => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl>` : ""}
-      ${o.extra || ""}
-      <div class="up-acts">${o.acts}</div>
-    </section>`;
-  // A one-event calendar file, so "Add to calendar" works with Apple, Google and Outlook without any account.
-  function icsLink(a) {
-    const stamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-    const day = (d) => fmt(d, { year: "numeric" }) + fmt(d, { month: "2-digit" }) + fmt(d, { day: "2-digit" });
-    let when, what;
-    if (a.starts_at) { when = ["DTSTART:" + stamp(a.starts_at), "DTEND:" + stamp(new Date(a.starts_at.getTime() + 2 * 36e5))]; what = ["SUMMARY:" + cap(a.position) + " umpire: " + a.match, "LOCATION:" + a.venue, "DESCRIPTION:" + a.event]; }
-    else { const end = new Date((a.ends_on || a.starts_on).getTime() + DAY); when = ["DTSTART;VALUE=DATE:" + day(a.starts_on), "DTEND;VALUE=DATE:" + day(end)]; what = ["SUMMARY:" + a.name, "LOCATION:" + a.location, "DESCRIPTION:" + (a.description || "USAFL umpiring")]; }
-    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//USAFL Umpires//Hub//EN", "BEGIN:VEVENT", "UID:" + stamp(a.starts_at || a.starts_on) + "@usaflumpires.com", "DTSTAMP:" + stamp(new Date())].concat(when, what, ["END:VEVENT", "END:VCALENDAR"]).join("\r\n");
-    return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
-  }
-  function upUmpire() {
-    const a = SAMPLE.appointments[0];
-    if (!a) {
-      // Not appointed to anything yet: point at the next event on the calendar instead, so the card is still useful.
-      const ev = SAMPLE.events.find((e) => e.published);
-      if (!ev) return up({ label: "Next tournament", big: "Off-season", title: "No games or events on the calendar yet", sub: "The committee posts the season here as soon as it's set. A good time to finish your learning and check your compliance.",
-        acts: `<a class="btn hot" href="#/learning">Go to learning</a><a class="btn ghost" href="#/compliance">Compliance</a>` });
-      const c = countdown(ev.starts_on);
-      return up({ label: "Next tournament", tag: "Not appointed yet", big: c[0], unit: c[1], title: ev.name,
-        sub: "You're not on a game yet. Appointments usually come out in the week before each round, and they'll show here.",
-        rows: [["When", ev.ends_on ? `${fmt(ev.starts_on, { weekday: "short", month: "short", day: "numeric" })} to ${fmt(ev.ends_on, { weekday: "short", month: "short", day: "numeric" })}` : fmt(ev.starts_on, { weekday: "long", month: "short", day: "numeric" })], ["Where", ev.location]],
-        acts: `<a class="btn hot" href="${icsLink(ev)}" download="usafl-event.ics">${icon("calendar", "sm")} Add to calendar</a><a class="btn ghost" href="#/events">All events</a>` });
+  // ---------- home: the latest reel, in a custom player ----------
+  // media/reel.mp4 is a 720x1280 H.264 copy of the committee's reel (the 4K original stays off the site).
+  // Cloudflare's static hosting can't send part of a file, which iPhone/Safari need for video, so Apple
+  // devices get the same reel cut into short HLS segments (media/hls/), which they play from plain files.
+  // Plays muted on loop while it's on screen (not with reduced motion); tap for sound, scrub, or go full screen.
+  const reel = () => `
+    <figure class="reel" data-reel>
+      <video playsinline muted loop preload="metadata" poster="media/reel-poster.webp" aria-label="The latest USAFL umpiring reel"></video>
+      <button class="reel-hit" data-reel-act="toggle" aria-label="Play"></button>
+      <span class="reel-big" aria-hidden="true">${icon("play")}</span>
+      <div class="reel-bar">
+        <button data-reel-act="toggle" class="reel-btn" aria-label="Play">${icon("play", "sm")}</button>
+        <input class="reel-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek" />
+        <span class="reel-time">0:00</span>
+        <button data-reel-act="mute" class="reel-btn" aria-label="Turn sound on">${icon("muted", "sm")}</button>
+        <button data-reel-act="full" class="reel-btn" aria-label="Full screen">${icon("expand", "sm")}</button>
+      </div>
+    </figure>`;
+  let reelObs = null;
+  function initReel() {
+    if (reelObs) { reelObs.disconnect(); reelObs = null; }
+    const box = $("[data-reel]"); if (!box) return;
+    const v = $("video", box), seek = $(".reel-seek", box), tm = $(".reel-time", box);
+    const ua = navigator.userAgent, apple = /iPad|iPhone|iPod/.test(ua) || (/Safari/.test(ua) && !/Chrome|Chromium|Edg|Android/.test(ua)) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (!v.src) v.src = apple && v.canPlayType("application/vnd.apple.mpegurl") ? "media/hls/reel.m3u8" : "media/reel.mp4";
+    const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const sync = () => {
+      const playing = !v.paused;
+      box.classList.toggle("playing", playing);
+      box.querySelectorAll('[data-reel-act="toggle"]').forEach((b) => b.setAttribute("aria-label", playing ? "Pause" : "Play"));
+      $(".reel-btn[data-reel-act=toggle]", box).innerHTML = icon(playing ? "pause" : "play", "sm");
+      const m = $("[data-reel-act=mute]", box); m.innerHTML = icon(v.muted ? "muted" : "sound", "sm"); m.setAttribute("aria-label", v.muted ? "Turn sound on" : "Turn sound off");
+    };
+    const tick = () => { if (v.duration) { if (!box.classList.contains("seeking")) seek.value = Math.round((v.currentTime / v.duration) * 1000); seek.style.setProperty("--p", (v.currentTime / v.duration) * 100 + "%"); tm.textContent = mmss(v.currentTime); } };
+    ["play", "pause", "volumechange"].forEach((e) => v.addEventListener(e, sync));
+    v.addEventListener("timeupdate", tick); v.addEventListener("loadedmetadata", tick);
+    seek.addEventListener("input", () => { box.classList.add("seeking"); if (v.duration) { v.currentTime = (seek.value / 1000) * v.duration; tick(); } });
+    seek.addEventListener("change", () => box.classList.remove("seeking"));
+    box._userPaused = false;
+    const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!calm && "IntersectionObserver" in window) {
+      reelObs = new IntersectionObserver(([en]) => { if (en.isIntersecting && en.intersectionRatio > 0.5 && !box._userPaused) v.play().catch(() => {}); else if (!en.isIntersecting || en.intersectionRatio < 0.2) v.pause(); }, { threshold: [0, 0.2, 0.5, 1] });
+      reelObs.observe(box);
     }
-    const c = countdown(a.starts_at);
-    return up({ label: "Your next game", tag: cap(a.position) + " umpire", big: c[0], unit: c[1], title: a.match,
-      rows: [["When", `${fmt(a.starts_at, { weekday: "long", month: "short", day: "numeric" })}, ${time(a.starts_at)}`], ["Where", a.venue], ["Event", a.event]],
-      extra: a.with ? `<div class="up-crew"><span class="up-faces">${["Sam Carter"].concat(a.with).map((n) => `<i>${esc(initials(n))}</i>`).join("")}</span><span>With ${esc(a.with.join(" and "))}</span></div>` : "",
-      acts: `<a class="btn hot" href="${icsLink(a)}" download="usafl-game.ics">${icon("calendar", "sm")} Add to calendar</a><a class="btn ghost" href="#/appointments">All games</a>` });
+    sync();
   }
-  function upApplicant() {
-    const O = SAMPLE.onboarding, i = O.findIndex((o) => !o.done), done = O.filter((o) => o.done).length;
-    if (i < 0) return up({ label: "Your next step", big: "Done", title: "You've finished getting started", sub: "The committee will be in touch about your application.", acts: `<a class="btn ghost" href="#/application">Your application</a>` });
-    return up({ label: "Your next step", tag: `${done} of ${O.length} done`, big: `Step ${i + 1}`, title: O[i].title, sub: O[i].body,
-      extra: `<div class="up-pips">${O.map((o) => `<i class="${o.done ? "on" : ""}"></i>`).join("")}</div>`,
-      acts: `<button class="btn hot" data-step="${i}">${icon("check", "sm")} Mark as done</button><a class="btn ghost" href="#/getting-started">All steps</a>` });
-  }
-  function upStaff() {
-    const S = SAMPLE, q = S.queue, d = S.docsWaiting, n = q.length + d.length, old = q.slice().sort((x, y) => y.days - x.days)[0];
-    if (!n) return up({ label: "Waiting on the committee", big: "0", title: "You're all caught up", sub: "New applications and documents show up here.", acts: `<a class="btn ghost" href="#/members">Members</a>` });
-    return up({ label: "Waiting on the committee", big: String(n), unit: n === 1 ? "thing" : "things",
-      title: `${q.length} ${q.length === 1 ? "application" : "applications"} and ${d.length} ${d.length === 1 ? "document" : "documents"}`,
-      sub: old ? `${old.name} has waited longest: ${ago(old.days).toLowerCase()}.` : "",
-      acts: `${old ? `<a class="btn hot" href="#/applications/${old.id}">Review ${esc(old.name.split(" ")[0])}</a>` : ""}${d.length ? `<a class="btn ghost" href="#/compliance">Check documents</a>` : ""}` });
+  function reelAct(btn) {
+    const box = btn.closest("[data-reel]"), v = $("video", box), act = btn.dataset.reelAct;
+    if (act === "toggle") { if (v.paused) { box._userPaused = false; v.play().catch(() => {}); } else { box._userPaused = true; v.pause(); } }
+    if (act === "mute") { v.muted = !v.muted; if (!v.muted && v.paused) { box._userPaused = false; v.play().catch(() => {}); } }
+    if (act === "full") { if (v.requestFullscreen) v.requestFullscreen().catch(() => {}); else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); }
   }
 
   // ---------- home, per role ----------
@@ -391,7 +393,7 @@
         field: { name: "Field", num: "Level " + field.level, note: `${field.games} games this year` },
         boundary: { name: "Boundary", num: "Level " + bnd.level, note: `${bnd.games} games this year` },
       },
-      hero: upUmpire(), note: "",
+      hero: reel(), note: "",
       cards: [
         { to: "accreditation", name: "Accreditation", tone: "good", val: "Level " + field.level, unit: "Field umpire", viz: pips(Array.from({ length: field.of }, (_, i) => (i < field.level ? "on" : ""))), foot: `<span>Valid to ${monthYear(field.expires_on)}</span>` },
         { to: "compliance", name: "Compliance", tone: due.length ? "due" : "good", val: `${done} of ${S.compliance.length}`, unit: "requirements complete", viz: pips(S.compliance.map((c) => (c.status === "approved" ? "on" : c.status === "missing" ? "wait" : ""))), foot: due.length ? `<span class="flag">${esc(due[0].name)} due ${dayMonth(due[0].due)}</span>` : done === S.compliance.length ? `<span class="ok">All current</span>` : `<span>With the committee</span>` },
@@ -420,7 +422,7 @@
         field: { name: "Field umpire", note: "Runs the game: bounces, marks, free kicks." },
         boundary: { name: "Boundary umpire", note: "Calls the ball out and throws it back in." },
       },
-      hero: upApplicant(), note: "",
+      hero: reel(), note: "",
       cards: panel("Your application", "application", `
         <ol class="steps">${names.map((n, i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"${i === at ? ' aria-current="step"' : ""}>${n}</li>`).join("")}</ol>`, "wide"),
       panels: panel("Getting started", "getting-started", S.onboarding.map((o, i) => `
@@ -440,7 +442,7 @@
         field: { name: "Field", num: S.roster.field, unit: "umpires", note: "9 at Level 3" },
         boundary: { name: "Boundary", num: S.roster.boundary, unit: "umpires", note: "Shortest in the West" },
       },
-      hero: upStaff(), note: "",
+      hero: reel(), note: "",
       cards: [
         { to: "applications", name: "Applications", tone: S.queue.length ? "due" : "good", val: S.queue.length, unit: "waiting for review", foot: S.queue.length ? `<span class="flag">Oldest is ${S.queue[0].days} days old</span>` : `<span class="ok">All reviewed</span>` },
         { to: "compliance", name: "Documents", tone: S.docsWaiting.length ? "due" : "good", val: S.docsWaiting.length, unit: "to check", foot: S.docsWaiting.length ? `<span>SafeSport ${S.docsWaiting.filter((e) => /SafeSport/.test(e.item)).length}</span><span>Background ${S.docsWaiting.filter((e) => /Background/.test(e.item)).length}</span>` : `<span class="ok">All checked</span>` },
@@ -1199,12 +1201,12 @@
         <div><h1 class="hello">G'day, <strong>${esc(SAMPLE.profile.preferred_name)}.</strong></h1><p class="sub">${esc(h.sub)}</p></div>
         <div class="today">${fmt(today, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div>
       </header>
-      <div class="home ${h.hero ? "" : "solo"}">
+      <div class="home ${h.hero ? "" : "solo"} ${role !== "visitor" ? "has-reel" : ""}">
         ${h.hero ? `<section class="hero">${h.hero}</section>` : ""}
         <div class="cards">${h.cards}</div>
         <div class="panels">${h.panels}</div>
       </div>`;
-    flyPlanes();
+    flyPlanes(); initReel();
     firstPaint = false;
   }
 
@@ -1231,6 +1233,8 @@
       render(); return;
     }
     const t0 = e.target, S = SAMPLE;
+    const ra = t0.closest("[data-reel-act]");
+    if (ra) { reelAct(ra); return; }
     const pick = t0.closest("[data-pick]");
     if (pick) {
       const f = pick.dataset.pick, val = pick.dataset.val;
